@@ -1,0 +1,37 @@
+{
+    "manifest_version": 3,
+    "name": "MartinChessVN",
+    "version": "1.0",
+    "description": "UI Enhancer for Chess.com - Larger Clock, Focus Mode & Fullscreen.",
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "https://www.chess.com/*"
+    ],
+    "action": {
+        "default_popup": "popup/popup.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://www.chess.com/*"
+            ],
+            "js": [
+                "content.js"
+            ]
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "assets/pawn.png"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
