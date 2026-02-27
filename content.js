@@ -1,5 +1,37 @@
-// FULLSCREEN BUTTON - always visible
+const style = document.createElement("style");
+style.textContent = `
+.martin-hide-opponent 
+[class*="player"]:not([class*="bottom"]) 
+.player-tagline {
+    background: rgba(0,0,0,0.4);
+backdrop-filter: blur(6px);
+    border-radius: 6px;
+}
 
+.martin-hide-opponent 
+[class*="player"]:not([class*="bottom"]) 
+.player-tagline * {
+    visibility: hidden !important;
+}
+
+.martin-hide-opponent 
+[class*="player"]:not([class*="bottom"]) 
+.player-tagline::after {
+    content: "Anonymous Opponent";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+`;
+document.head.appendChild(style);
+
+document.head.appendChild(style);
 const btn = document.createElement("button");
 btn.innerText = "⛶";
 btn.title = "Fullscreen";
@@ -53,19 +85,97 @@ function applySettings(settings) {
 
 
 // ===== Hide Opponent Block (Clean Version) =====
+// function toggleOpponentVisibility(hide) {
+
+//     const username = document.querySelector('[data-test-element="user-tagline-username"]');
+
+//     if (!username) return;
+
+//     // Tìm block lớn bao toàn bộ avatar + tên + rating + flag
+//     const opponentBlock = username.closest('[class*="player"]');
+
+//     if (opponentBlock) {
+//         opponentBlock.style.display = hide ? "none" : "";
+//     }
+// }
+
 function toggleOpponentVisibility(hide) {
 
-    const username = document.querySelector('[data-test-element="user-tagline-username"]');
-
-    if (!username) return;
-
-    // Tìm block lớn bao toàn bộ avatar + tên + rating + flag
-    const opponentBlock = username.closest('[class*="player"]');
-
-    if (opponentBlock) {
-        opponentBlock.style.display = hide ? "none" : "";
+    if (hide) {
+        document.body.classList.add("martin-hide-opponent");
+    } else {
+        document.body.classList.remove("martin-hide-opponent");
     }
+
+    const avatars = document.querySelectorAll('[data-cy="avatar"]');
+
+    avatars.forEach(avatar => {
+
+        const playerBlock = avatar.closest('[class*="player"]');
+        if (!playerBlock) return;
+
+        const isUserBlock = playerBlock.matches('[class*="bottom"]');
+        if (isUserBlock) return;
+
+        if (hide) {
+
+            if (!avatar.dataset.originalSrc) {
+                avatar.dataset.originalSrc = avatar.src;
+                avatar.dataset.originalSrcset = avatar.srcset;
+            }
+
+            const chessURL = chrome.runtime.getURL("assets/chess.png");
+            avatar.src = chessURL;
+            avatar.srcset = "";
+
+            // Hide children inside the user-tagline but keep the ::after overlay visible
+            const userTagline = playerBlock.querySelector('[class*="user-tagline"]');
+            if (userTagline) {
+                userTagline.querySelectorAll('*').forEach(el => {
+                    if (!el.dataset.originalVisibility) el.dataset.originalVisibility = el.style.visibility || '';
+                    el.style.visibility = 'hidden';
+                });
+            }
+
+            // Hide flags and rating elements that might sit outside the tagline
+            const extraEls = playerBlock.querySelectorAll('[data-cy="country-flag"], .flag, [data-test-element="user-tagline-rating"]');
+            extraEls.forEach(el => {
+                if (!el.dataset.originalDisplay) el.dataset.originalDisplay = el.style.display || '';
+                el.style.display = 'none';
+            });
+
+        } else {
+
+            if (avatar.dataset.originalSrc) {
+                avatar.src = avatar.dataset.originalSrc;
+                avatar.srcset = avatar.dataset.originalSrcset || "";
+                delete avatar.dataset.originalSrc;
+                delete avatar.dataset.originalSrcset;
+            }
+
+            // Restore visibility/display for previously-hidden elements
+            const userTagline = playerBlock.querySelector('[class*="user-tagline"]');
+            if (userTagline) {
+                userTagline.querySelectorAll('*').forEach(el => {
+                    if (el.dataset.originalVisibility !== undefined) {
+                        el.style.visibility = el.dataset.originalVisibility;
+                        delete el.dataset.originalVisibility;
+                    }
+                });
+            }
+
+            const extraEls = playerBlock.querySelectorAll('[data-cy="country-flag"], .flag, [data-test-element="user-tagline-rating"]');
+            extraEls.forEach(el => {
+                if (el.dataset.originalDisplay !== undefined) {
+                    el.style.display = el.dataset.originalDisplay;
+                    delete el.dataset.originalDisplay;
+                }
+            });
+        }
+    });
 }
+
+
 
 
 // ===== LOAD SETTINGS ON PAGE LOAD =====
