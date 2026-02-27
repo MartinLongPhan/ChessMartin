@@ -32,37 +32,70 @@ style.textContent = `
 
 const timeAlertStyle = document.createElement("style");
 timeAlertStyle.textContent = `
-@keyframes martin-yellow {
-    0% { background: rgba(255, 200, 0, 0.2); }
-    50% { background: rgba(255, 200, 0, 0.7); }
-    100% { background: rgba(255, 200, 0, 0.2); }
+/* Cảnh báo Vàng: 15 giây - Hồi hộp nhẹ */
+@keyframes martin-yellow-glow {
+    0% { 
+        background: #35322e; 
+        box-shadow: 0 0 5px rgba(255, 170, 0, 0.2);
+    }
+    50% { 
+        background: linear-gradient(145deg, #ff9f00, #cc7a00); 
+        box-shadow: 0 0 20px rgba(255, 159, 0, 0.6);
+    }
+    100% { 
+        background: #35322e; 
+        box-shadow: 0 0 5px rgba(255, 170, 0, 0.2);
+    }
 }
 
-@keyframes martin-red {
-    0% { background: rgba(255, 0, 0, 0.3); }
-    50% { background: rgba(255, 0, 0, 0.9); }
-    100% { background: rgba(255, 0, 0, 0.3); }
+/* Cảnh báo Đỏ: 10 giây - Nguy hiểm */
+@keyframes martin-red-glow {
+    0% { 
+        background: #35322e; 
+    }
+    50% { 
+        background: linear-gradient(145deg, #ff0000, #b30000); 
+        box-shadow: 0 0 25px rgba(255, 0, 0, 0.8);
+    }
+    100% { 
+        background: #35322e; 
+    }
 }
 
-@keyframes martin-critical {
-    0% { background: rgba(255, 0, 0, 0.6); transform: scale(1); }
-    50% { background: rgba(255, 0, 0, 1); transform: scale(1.05); }
-    100% { background: rgba(255, 0, 0, 0.6); transform: scale(1); }
+/* Cảnh báo Chí mạng: 5 giây - Báo động đỏ rực */
+@keyframes martin-critical-glow {
+    0% { 
+        background: #35322e; 
+        transform: scale(1); 
+    }
+    50% { 
+        background: linear-gradient(145deg, #ff004c, #8b0000); 
+        box-shadow: 0 0 35px #ff0000, inset 0 0 10px rgba(255,255,255,0.3);
+        transform: scale(1.08); 
+    }
+    100% { 
+        background: #35322e; 
+        transform: scale(1); 
+    }
 }
 
 .martin-time-15 {
-    animation: martin-yellow 1.2s infinite;
-    border-radius: 8px;
+    animation: martin-yellow-glow 1.5s ease-in-out infinite;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 159, 0, 0.3);
 }
 
 .martin-time-10 {
-    animation: martin-red 0.6s infinite;
-    border-radius: 8px;
+    animation: martin-red-glow 0.8s ease-in-out infinite;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 0, 0, 0.5);
 }
 
 .martin-time-5 {
-    animation: martin-critical 0.4s infinite;
-    border-radius: 8px;
+    animation: martin-critical-glow 0.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    border-radius: 6px;
+    z-index: 10; /* Đảm bảo nổi bật lên trên */
+    border: 1px solid #ff0000;
 }
 `;
 document.head.appendChild(timeAlertStyle);
