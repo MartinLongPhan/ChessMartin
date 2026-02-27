@@ -7,11 +7,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const hideAds = document.getElementById("hideAds");
     const hideNotifications = document.getElementById("hideNotifications");
     const lowTimeAlert = document.getElementById("lowTimeAlert");
+    const hideGameMessages = document.getElementById("hideGameMessages");
 
     // ===== LOAD ALL SETTINGS =====
     chrome.storage.sync.get(
         ["largerClock", "hideOpponent", "cleanUI",
-            "hideLogo", "hideAds", "hideNotifications", "lowTimeAlert"],
+            "hideLogo", "hideAds", "hideNotifications",
+            "lowTimeAlert", "hideGameMessages"],
         (data) => {
             clockToggle.checked = data.largerClock || false;
             hideOpponentToggle.checked = data.hideOpponent || false;
@@ -20,6 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
             hideAds.checked = data.hideAds || false;
             hideNotifications.checked = data.hideNotifications || false;
             lowTimeAlert.checked = data.lowTimeAlert || false;
+            hideGameMessages.checked = data.hideGameMessages || false;
         }
     );
 
@@ -33,12 +36,11 @@ document.addEventListener("DOMContentLoaded", () => {
             hideAds: hideAds.checked,
             hideNotifications: hideNotifications.checked,
             lowTimeAlert: lowTimeAlert.checked,
+            hideGameMessages: hideGameMessages.checked,
         };
 
-        // Lưu vào storage
         chrome.storage.sync.set(settings);
 
-        // Gửi realtime sang content.js
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs[0]?.id) return;
             chrome.tabs.sendMessage(tabs[0].id, {
@@ -57,6 +59,7 @@ document.addEventListener("DOMContentLoaded", () => {
         hideAds,
         hideNotifications,
         lowTimeAlert,
+        hideGameMessages,
     ].forEach(el => el.addEventListener("change", updateSettings));
 
 });

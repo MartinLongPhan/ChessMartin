@@ -32,51 +32,25 @@ style.textContent = `
 
 const timeAlertStyle = document.createElement("style");
 timeAlertStyle.textContent = `
-/* Cảnh báo Vàng: 15 giây - Hồi hộp nhẹ */
+/* Cảnh báo Vàng: 15 giây */
 @keyframes martin-yellow-glow {
-    0% { 
-        background: #35322e; 
-        box-shadow: 0 0 5px rgba(255, 170, 0, 0.2);
-    }
-    50% { 
-        background: linear-gradient(145deg, #ff9f00, #cc7a00); 
-        box-shadow: 0 0 20px rgba(255, 159, 0, 0.6);
-    }
-    100% { 
-        background: #35322e; 
-        box-shadow: 0 0 5px rgba(255, 170, 0, 0.2);
-    }
+    0%   { background: #35322e; box-shadow: 0 0 5px rgba(255, 170, 0, 0.2); }
+    50%  { background: linear-gradient(145deg, #ff9f00, #cc7a00); box-shadow: 0 0 20px rgba(255, 159, 0, 0.6); }
+    100% { background: #35322e; box-shadow: 0 0 5px rgba(255, 170, 0, 0.2); }
 }
 
-/* Cảnh báo Đỏ: 10 giây - Nguy hiểm */
+/* Cảnh báo Đỏ: 10 giây */
 @keyframes martin-red-glow {
-    0% { 
-        background: #35322e; 
-    }
-    50% { 
-        background: linear-gradient(145deg, #ff0000, #b30000); 
-        box-shadow: 0 0 25px rgba(255, 0, 0, 0.8);
-    }
-    100% { 
-        background: #35322e; 
-    }
+    0%   { background: #35322e; }
+    50%  { background: linear-gradient(145deg, #ff0000, #b30000); box-shadow: 0 0 25px rgba(255, 0, 0, 0.8); }
+    100% { background: #35322e; }
 }
 
-/* Cảnh báo Chí mạng: 5 giây - Báo động đỏ rực */
+/* Cảnh báo Chí mạng: 5 giây */
 @keyframes martin-critical-glow {
-    0% { 
-        background: #35322e; 
-        transform: scale(1); 
-    }
-    50% { 
-        background: linear-gradient(145deg, #ff004c, #8b0000); 
-        box-shadow: 0 0 35px #ff0000, inset 0 0 10px rgba(255,255,255,0.3);
-        transform: scale(1.08); 
-    }
-    100% { 
-        background: #35322e; 
-        transform: scale(1); 
-    }
+    0%   { background: #35322e; transform: scale(1); }
+    50%  { background: linear-gradient(145deg, #ff004c, #8b0000); box-shadow: 0 0 35px #ff0000, inset 0 0 10px rgba(255,255,255,0.3); transform: scale(1.08); }
+    100% { background: #35322e; transform: scale(1); }
 }
 
 .martin-time-15 {
@@ -84,17 +58,15 @@ timeAlertStyle.textContent = `
     border-radius: 6px;
     border: 1px solid rgba(255, 159, 0, 0.3);
 }
-
 .martin-time-10 {
     animation: martin-red-glow 0.8s ease-in-out infinite;
     border-radius: 6px;
     border: 1px solid rgba(255, 0, 0, 0.5);
 }
-
 .martin-time-5 {
     animation: martin-critical-glow 0.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     border-radius: 6px;
-    z-index: 10; /* Đảm bảo nổi bật lên trên */
+    z-index: 10;
     border: 1px solid #ff0000;
 }
 `;
@@ -117,24 +89,17 @@ function checkLowTime() {
     }
 
     myClock.classList.remove("martin-time-15", "martin-time-10", "martin-time-5");
-
     if (!currentSettings.lowTimeAlert) return;
 
-    if (seconds <= 5) {
-        myClock.classList.add("martin-time-5");
-    } else if (seconds <= 10) {
-        myClock.classList.add("martin-time-10");
-    } else if (seconds <= 15) {
-        myClock.classList.add("martin-time-15");
-    }
+    if (seconds <= 5) myClock.classList.add("martin-time-5");
+    else if (seconds <= 10) myClock.classList.add("martin-time-10");
+    else if (seconds <= 15) myClock.classList.add("martin-time-15");
 }
 
-// Dùng interval riêng để check đồng hồ mỗi 500ms
-// KHÔNG phụ thuộc vào MutationObserver — đảm bảo phản ứng kịp thời
 let lowTimeInterval = null;
 
 function startLowTimeInterval() {
-    if (lowTimeInterval) return; // Tránh tạo nhiều interval trùng nhau
+    if (lowTimeInterval) return;
     lowTimeInterval = setInterval(checkLowTime, 500);
 }
 
@@ -143,7 +108,6 @@ function stopLowTimeInterval() {
         clearInterval(lowTimeInterval);
         lowTimeInterval = null;
     }
-    // Xóa hết class animation khi tắt tính năng
     const myClock = document.querySelector('[class*="clock-bottom"] .clock-time-monospace');
     if (myClock) myClock.classList.remove("martin-time-15", "martin-time-10", "martin-time-5");
 }
@@ -166,11 +130,8 @@ btn.style.color = "white";
 btn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
 
 btn.onclick = () => {
-    if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
-    } else {
-        document.exitFullscreen();
-    }
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
 };
 document.body.appendChild(btn);
 
@@ -181,15 +142,9 @@ console.log("MartinChessVN loaded");
 function applySettings(settings) {
 
     // Clock size
-    const clocks = document.querySelectorAll(".clock-time-monospace");
-    clocks.forEach(clock => {
-        if (settings.largerClock) {
-            clock.style.fontSize = "40px";
-            clock.style.fontWeight = "bold";
-        } else {
-            clock.style.fontSize = "";
-            clock.style.fontWeight = "";
-        }
+    document.querySelectorAll(".clock-time-monospace").forEach(clock => {
+        clock.style.fontSize = settings.largerClock ? "40px" : "";
+        clock.style.fontWeight = settings.largerClock ? "bold" : "";
     });
 
     // Hide Opponent
@@ -201,21 +156,16 @@ function applySettings(settings) {
     document.body.classList.toggle("martin-hide-ads", !!(settings.cleanUI && settings.hideAds));
     document.body.classList.toggle("martin-hide-notifications", !!(settings.cleanUI && settings.hideNotifications));
 
-    // Low Time Alert — bật/tắt interval
-    if (settings.lowTimeAlert) {
-        startLowTimeInterval();
-    } else {
-        stopLowTimeInterval();
-    }
+    // Low Time Alert
+    settings.lowTimeAlert ? startLowTimeInterval() : stopLowTimeInterval();
+
+    // Hide Game Messages
+    document.body.classList.toggle("martin-hide-game-messages", !!settings.hideGameMessages);
 }
 
 // ===== HIDE OPPONENT =====
 function toggleOpponentVisibility(hide) {
-    if (hide) {
-        document.body.classList.add("martin-hide-opponent");
-    } else {
-        document.body.classList.remove("martin-hide-opponent");
-    }
+    document.body.classList.toggle("martin-hide-opponent", !!hide);
 
     const avatars = document.querySelectorAll('[data-cy="avatar"]');
     avatars.forEach(avatar => {
@@ -230,8 +180,7 @@ function toggleOpponentVisibility(hide) {
                 avatar.dataset.originalSrc = avatar.src;
                 avatar.dataset.originalSrcset = avatar.srcset;
             }
-            const chessURL = chrome.runtime.getURL("assets/chess.png");
-            avatar.src = chessURL;
+            avatar.src = chrome.runtime.getURL("assets/chess.png");
             avatar.srcset = "";
 
             const userTagline = playerBlock.querySelector('[class*="user-tagline"]');
@@ -242,11 +191,11 @@ function toggleOpponentVisibility(hide) {
                 });
             }
 
-            const extraEls = playerBlock.querySelectorAll('[data-cy="country-flag"], .flag, [data-test-element="user-tagline-rating"]');
-            extraEls.forEach(el => {
-                if (!el.dataset.originalDisplay) el.dataset.originalDisplay = el.style.display || '';
-                el.style.display = 'none';
-            });
+            playerBlock.querySelectorAll('[data-cy="country-flag"], .flag, [data-test-element="user-tagline-rating"]')
+                .forEach(el => {
+                    if (!el.dataset.originalDisplay) el.dataset.originalDisplay = el.style.display || '';
+                    el.style.display = 'none';
+                });
 
         } else {
             if (avatar.dataset.originalSrc) {
@@ -266,13 +215,13 @@ function toggleOpponentVisibility(hide) {
                 });
             }
 
-            const extraEls = playerBlock.querySelectorAll('[data-cy="country-flag"], .flag, [data-test-element="user-tagline-rating"]');
-            extraEls.forEach(el => {
-                if (el.dataset.originalDisplay !== undefined) {
-                    el.style.display = el.dataset.originalDisplay;
-                    delete el.dataset.originalDisplay;
-                }
-            });
+            playerBlock.querySelectorAll('[data-cy="country-flag"], .flag, [data-test-element="user-tagline-rating"]')
+                .forEach(el => {
+                    if (el.dataset.originalDisplay !== undefined) {
+                        el.style.display = el.dataset.originalDisplay;
+                        delete el.dataset.originalDisplay;
+                    }
+                });
         }
     });
 }
@@ -288,7 +237,8 @@ chrome.runtime.onMessage.addListener((message) => {
 
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
-    ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds", "hideNotifications", "lowTimeAlert"],
+    ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
+        "hideNotifications", "lowTimeAlert", "hideGameMessages"],
     (data) => {
         currentSettings = data;
         applySettings(currentSettings);
@@ -304,29 +254,29 @@ const observer = new MutationObserver((mutations) => {
     if (onlyBodyClassChange) return;
 
     clearTimeout(timeout);
-    timeout = setTimeout(() => {
-        applySettings(currentSettings);
-    }, 100);
+    timeout = setTimeout(() => applySettings(currentSettings), 100);
 });
 
-observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true
-});
+observer.observe(document.body, { childList: true, subtree: true, attributes: true });
 
-// ===== CLEAN UI STYLES =====
+// ===== STYLES =====
 const cleanStyle = document.createElement("style");
 cleanStyle.textContent = `
-.martin-hide-logo .header-logo {
-    display: none !important;
-}
+
+/* Clean UI toggles */
+.martin-hide-logo .header-logo { display: none !important; }
+
 .martin-hide-ads .advertisement,
-.martin-hide-ads [class*="ad-"] {
-    display: none !important;
-}
+.martin-hide-ads [class*="ad-"] { display: none !important; }
+
 .martin-hide-notifications .notification-area,
-.martin-hide-notifications [class*="notification"] {
+.martin-hide-notifications [class*="notification"] { display: none !important; }
+
+/* Hide Game Messages (toggle) */
+.martin-hide-game-messages .game-over-message-component,
+.martin-hide-game-messages .game-rate-sport-message-component,
+.martin-hide-game-messages .game-start-message-component,
+.martin-hide-game-messages .chat-input-component {
     display: none !important;
 }
 `;
