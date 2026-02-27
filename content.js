@@ -3,7 +3,7 @@ style.textContent = `
 .martin-hide-opponent 
 [class*="player"]:not([class*="bottom"]) 
 .player-tagline {
-    background: rgba(0,0,0,0.4);
+    background: #302E2B;
 backdrop-filter: blur(6px);
     border-radius: 6px;
 }
