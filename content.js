@@ -29,7 +29,6 @@ backdrop-filter: blur(6px);
     letter-spacing: 1px;
 }
 `;
-document.head.appendChild(style);
 
 document.head.appendChild(style);
 const btn = document.createElement("button");
@@ -58,29 +57,36 @@ btn.onclick = () => {
 
 document.body.appendChild(btn);
 
+
+let currentSettings = {};
 console.log("MartinChessVN loaded");
 
 
 // ===== APPLY SETTINGS FUNCTION =====
 function applySettings(settings) {
 
+    // ===== Clock =====
     const clocks = document.querySelectorAll(".clock-time-monospace");
 
     clocks.forEach(clock => {
         if (settings.largerClock) {
             clock.style.fontSize = "40px";
             clock.style.fontWeight = "bold";
-
         } else {
             clock.style.fontSize = "";
             clock.style.fontWeight = "";
         }
     });
 
-
-    // ===== Hide Opponent Block =====
+    // ===== Hide Opponent =====
     toggleOpponentVisibility(settings.hideOpponent);
 
+    // ===== Clean UI =====
+    document.body.classList.toggle("martin-clean", settings.cleanUI);
+
+    document.body.classList.toggle("martin-hide-logo", settings.cleanUI && settings.hideLogo);
+    document.body.classList.toggle("martin-hide-ads", settings.cleanUI && settings.hideAds);
+    document.body.classList.toggle("martin-hide-notifications", settings.cleanUI && settings.hideNotifications);
 }
 
 
@@ -179,29 +185,42 @@ function toggleOpponentVisibility(hide) {
 
 
 // ===== LOAD SETTINGS ON PAGE LOAD =====
-chrome.storage.sync.get(
-    ["largerClock", "hideOpponent"],
-    (data) => {
-        applySettings(data);
-    }
-);
+// chrome.storage.sync.get(
+//     ["largerClock", "hideOpponent"],
+//     (data) => {
+//         applySettings(data);
+//     }
+// );
+
 
 
 // ===== LISTEN FOR REAL-TIME UPDATE =====
 chrome.runtime.onMessage.addListener((message) => {
+    // if (message.action === "updateSettings") {
+    //     currentSettings = message;
+    //     applySettings(currentSettings);
+    // }
     if (message.action === "updateSettings") {
-        currentSettings = message;
+
+        const { action, ...newSettings } = message;
+
+        currentSettings = {
+            ...currentSettings,
+            ...newSettings
+        };
+
         applySettings(currentSettings);
     }
+
 });
 
 
 
 // ===== KEEP SETTINGS AFTER SPA NAVIGATION =====
-let currentSettings = {};
+
 
 chrome.storage.sync.get(
-    ["largerClock", "hideOpponent"],
+    ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds", "hideNotifications"],
     (data) => {
         currentSettings = data;
         applySettings(currentSettings);
@@ -209,13 +228,56 @@ chrome.storage.sync.get(
 );
 
 // Theo dõi DOM thay đổi (React re-render)
-const observer = new MutationObserver(() => {
-    if (currentSettings.hideOpponent || currentSettings.largerClock) {
+// const observer = new MutationObserver(() => {
+//     if (
+//         currentSettings.hideOpponent ||
+//         currentSettings.largerClock ||
+//         currentSettings.cleanUI
+//     ) {
+//         applySettings(currentSettings);
+//     }
+// });
+
+let timeout;
+
+const observer = new MutationObserver((mutations) => {
+
+    // Nếu mutation chỉ là attribute class của body thì bỏ qua
+    const onlyBodyClassChange = mutations.every(m =>
+        m.type === "attributes" && m.target === document.body
+    );
+
+    if (onlyBodyClassChange) return;
+
+    clearTimeout(timeout);
+
+    timeout = setTimeout(() => {
         applySettings(currentSettings);
-    }
+    }, 100);
+
 });
 
 observer.observe(document.body, {
     childList: true,
-    subtree: true
+    subtree: true,
+    attributes: true
 });
+const cleanStyle = document.createElement("style");
+cleanStyle.textContent = `
+
+.martin-hide-logo .header-logo {
+    display: none !important;
+}
+
+.martin-hide-ads .advertisement,
+.martin-hide-ads [class*="ad-"] {
+    display: none !important;
+}
+
+.martin-hide-notifications .notification-area,
+.martin-hide-notifications [class*="notification"] {
+    display: none !important;
+}
+
+`;
+document.head.appendChild(cleanStyle);
