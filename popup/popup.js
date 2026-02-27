@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
             hideLogo.checked = data.hideLogo || false;
             hideAds.checked = data.hideAds || false;
             hideNotifications.checked = data.hideNotifications || false;
+            lowTimeAlert.checked = data.lowTimeAlert || false;
         }
     );
 
