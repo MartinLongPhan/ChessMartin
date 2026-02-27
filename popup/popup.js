@@ -11,23 +11,23 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.storage.sync.get(
         ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds", "hideNotifications"],
         (data) => {
-            clockToggle.checked = data.largerClock || false;
-            hideOpponentToggle.checked = data.hideOpponent || false;
-            cleanUI.checked = data.cleanUI || false;
-            hideLogo.checked = data.hideLogo || false;
-            hideAds.checked = data.hideAds || false;
-            hideNotifications.checked = data.hideNotifications || false;
+            clockToggle.checked         = data.largerClock       || false;
+            hideOpponentToggle.checked  = data.hideOpponent      || false;
+            cleanUI.checked             = data.cleanUI           || false;
+            hideLogo.checked            = data.hideLogo          || false;
+            hideAds.checked             = data.hideAds           || false;
+            hideNotifications.checked   = data.hideNotifications || false;
         }
     );
 
     // ===== GỬI TẤT CẢ SETTINGS MỖI KHI CÓ THAY ĐỔI =====
     function updateSettings() {
         const settings = {
-            largerClock: clockToggle.checked,
-            hideOpponent: hideOpponentToggle.checked,
-            cleanUI: cleanUI.checked,
-            hideLogo: hideLogo.checked,
-            hideAds: hideAds.checked,
+            largerClock:       clockToggle.checked,
+            hideOpponent:      hideOpponentToggle.checked,
+            cleanUI:           cleanUI.checked,
+            hideLogo:          hideLogo.checked,
+            hideAds:           hideAds.checked,
             hideNotifications: hideNotifications.checked,
         };
 
