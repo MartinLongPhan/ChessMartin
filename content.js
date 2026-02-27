@@ -78,11 +78,34 @@ chrome.storage.sync.get(
 
 
 // ===== LISTEN FOR REAL-TIME UPDATE =====
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message) => {
     if (message.action === "updateSettings") {
-        applySettings(message);
+        currentSettings = message;
+        applySettings(currentSettings);
     }
 });
 
 
 
+// ===== KEEP SETTINGS AFTER SPA NAVIGATION =====
+let currentSettings = {};
+
+chrome.storage.sync.get(
+    ["largerClock", "hideOpponent"],
+    (data) => {
+        currentSettings = data;
+        applySettings(currentSettings);
+    }
+);
+
+// Theo dõi DOM thay đổi (React re-render)
+const observer = new MutationObserver(() => {
+    if (currentSettings.hideOpponent || currentSettings.largerClock) {
+        applySettings(currentSettings);
+    }
+});
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true
+});
