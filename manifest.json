@@ -14,16 +14,6 @@
     "action": {
         "default_popup": "popup/popup.html"
     },
-    "content_scripts": [
-        {
-            "matches": [
-                "https://www.chess.com/*"
-            ],
-            "js": [
-                "content.js"
-            ]
-        }
-    ],
     "web_accessible_resources": [
         {
             "resources": [
@@ -32,6 +22,18 @@
             "matches": [
                 "<all_urls>"
             ]
+        }
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://www.chess.com/*"
+            ],
+            "js": [
+                "assets/chess.min.js",
+                "content.js"
+            ],
+            "run_at": "document_idle"
         }
     ]
 }
