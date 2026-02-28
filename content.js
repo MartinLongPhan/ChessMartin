@@ -612,10 +612,10 @@ document.head.appendChild(cleanStyle);
 
             el.style.cssText = `
             position: fixed;
-            left: ${x + cell * 0.38}px;
-            top: ${y + cell * 0.38}px;
-            width: ${cell * 0.24}px;
-            height: ${cell * 0.24}px;
+            left: ${x + cell * 0.41}px;
+            top: ${y + cell * 0.41}px;
+            width: ${cell * 0.18}px;
+            height: ${cell * 0.18}px;
             background: #FFD700;
             border-radius: 50%;
             pointer-events: none;
