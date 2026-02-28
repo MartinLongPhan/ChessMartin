@@ -626,11 +626,13 @@ document.head.appendChild(cleanStyle);
         log('Rendered', moves.length, 'moves (captures:', captureSet.size, ')');
     }
 
-    // ===== HELPERS =====
+    // ===== STATE =====
     let selectedSq = null;
     let legalMovesEnabled = false;
-    let isDragging = false;        // đang giữ chuột (drag mode)
+    let dotsVisible = false;
+    let isDraggingPiece = false;
 
+    // ===== HELPER: lấy ô cờ từ tọa độ pointer =====
     function sqFromEvent(e) {
         const boardEl = document.querySelector('wc-chess-board');
         if (!boardEl) return null;
@@ -653,6 +655,7 @@ document.head.appendChild(cleanStyle);
         return String.fromCharCode(97 + file) + rank;
     }
 
+    // ===== HELPER: tính và hiện moves cho ô sq =====
     function showMovesForSq(sq) {
         if (!sq) return;
 
@@ -685,55 +688,52 @@ document.head.appendChild(cleanStyle);
 
         const moves = ch.moves({ square: sq, verbose: true });
         log('Moves from', sq, ':', moves.map(m => m.to));
-
         if (!moves.length) { clearOverlay(); selectedSq = null; return; }
 
         selectedSq = sq;
         const caps = new Set(moves.filter(m => m.captured).map(m => m.to));
         renderDots(moves.map(m => m.to), caps, getFlipped());
+        dotsVisible = true;
     }
 
-    // ===== MOUSEDOWN — bắt đầu click hoặc drag =====
-    function onBoardMouseDown(e) {
-        if (!legalMovesEnabled || e.button !== 0) return;
+    function resetDots() {
+        clearOverlay();
+        dotsVisible = false;
+        isDraggingPiece = false;
+        selectedSq = null;
+    }
 
-        const sq = sqFromEvent(e);
-        if (!sq) return;
+    // ===== POINTER EVENTS =====
+    function initPointerEvents(board) {
+        // pointerdown: hiện dots ngay khi nhấn xuống
+        board.addEventListener('pointerdown', (e) => {
+            if (!legalMovesEnabled) return;
 
-        isDragging = true;
+            const sq = sqFromEvent(e);
+            if (!sq) return;
 
-        // Nếu click lại ô đang chọn → toggle off
-        if (selectedSq === sq) {
+            // Click lại đúng quân đang chọn → toggle off
+            if (selectedSq === sq && dotsVisible) {
+                resetDots();
+                return;
+            }
+
+            isDraggingPiece = true;
             clearOverlay();
-            selectedSq = null;
-            isDragging = false;
-            return;
-        }
+            showMovesForSq(sq);
+        });
 
-        showMovesForSq(sq);
+        // pointerup: clear dots khi thả tay
+        board.addEventListener('pointerup', () => {
+            if (!isDraggingPiece) return;
+            resetDots();
+        });
+
+        // pointercancel: đảm bảo không sót case (scroll, touch cancel...)
+        board.addEventListener('pointercancel', () => {
+            resetDots();
+        });
     }
-
-    // ===== MOUSEUP — kết thúc drag: ẩn overlay =====
-    function onMouseUp(e) {
-        if (!legalMovesEnabled || !isDragging) return;
-        isDragging = false;
-
-        // Chỉ ẩn overlay nếu đang ở chế độ drag (chuột dời khỏi ô gốc)
-        // Nếu mousedown và mouseup cùng ô → giữ overlay (click thường)
-        const sq = sqFromEvent(e);
-        if (sq !== selectedSq) {
-            // Người dùng thả vào ô khác → đã đi xong, ẩn overlay
-            clearOverlay();
-            selectedSq = null;
-        }
-        // Nếu sq === selectedSq → click thường, giữ overlay
-    }
-
-    const moveObs = new MutationObserver(() => {
-        // Không xóa overlay khi đang drag — chờ mouseup xử lý
-        if (isDragging) return;
-        if (selectedSq) { clearOverlay(); selectedSq = null; }
-    });
 
     function init() {
         if (typeof Chess === 'undefined') {
@@ -749,16 +749,8 @@ document.head.appendChild(cleanStyle);
             return;
         }
 
-        // mousedown để bắt cả click lẫn drag ngay từ đầu
-        document.addEventListener('mousedown', onBoardMouseDown, true);
-        // mouseup ở document để bắt kể cả khi thả ngoài board
-        document.addEventListener('mouseup', onMouseUp, true);
-
-        moveObs.observe(board, {
-            childList: true, subtree: true,
-            attributes: true, attributeFilter: ['fen', 'data-fen', 'class']
-        });
-        log('Legal moves overlay READY ✓');
+        initPointerEvents(board);
+        log('Legal moves overlay READY ✓ (pointer events)');
     }
 
     if (document.readyState === 'loading') {
