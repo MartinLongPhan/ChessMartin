@@ -123,13 +123,13 @@ const SEGMENTS = {
     '9': [1, 1, 1, 1, 0, 1, 1],
 };
 
-const LED_ON = '#ff2200';
-const LED_OFF = 'rgba(255,34,0,0.07)';
-const S = 5;    // độ dày nét
-const DW = 26;   // digit width
-const DH = 44;   // digit height
-const CW = 12;   // colon width
-const GAP = 3;    // gap giữa ký tự
+const LED_ON = '#cc1100';
+const LED_OFF = 'rgba(180,20,0,0.10)';
+const S = 4;    // độ dày nét
+const DW = 22;   // digit width
+const DH = 36;   // digit height
+const CW = 10;   // colon width
+const GAP = 2;    // gap giữa ký tự
 
 function drawDigit(ctx, char, x, y) {
     const segs = SEGMENTS[char];
@@ -183,25 +183,29 @@ function drawColon(ctx, x, y) {
 
 function renderTime(canvas, timeStr) {
     const chars = timeStr.replace(/\s/g, '').split('');
+    const PAD = 6; // padding bên trong canvas
 
-    // Tính tổng width
     let totalW = 0;
     chars.forEach(c => { totalW += (c === ':' ? CW : DW) + GAP; });
     totalW = Math.max(totalW - GAP, 1);
 
-    canvas.width = totalW;
-    canvas.height = DH;
+    canvas.width = totalW + PAD * 2;
+    canvas.height = DH + PAD * 2;
 
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    let x = 0;
+    // Vẽ background
+    ctx.fillStyle = '#2B2926';
+    ctx.roundRect(0, 0, canvas.width, canvas.height, 5);
+    ctx.fill();
+
+    let x = PAD;
     chars.forEach(c => {
         if (c === ':') {
-            drawColon(ctx, x, 0);
+            drawColon(ctx, x, PAD);
             x += CW + GAP;
         } else if (SEGMENTS[c]) {
-            drawDigit(ctx, c, x, 0);
+            drawDigit(ctx, c, x, PAD);
             x += DW + GAP;
         }
     });
@@ -222,7 +226,8 @@ function updateAllClocks() {
             canvas.className = 'martin-led-canvas';
             canvas.style.cssText = `
                 display: block;
-                filter: drop-shadow(0 0 5px #ff2200) drop-shadow(0 0 12px rgba(255,34,0,0.5));
+                background: #2B2926;
+                border-radius: 4px;
             `;
             span.after(canvas);
         }
@@ -431,12 +436,34 @@ cleanStyle.textContent = `
     display: none !important;
 }
 
-/* Căn chỉnh clock container để canvas hiển thị đẹp */
+/* Border bao quanh container đồng hồ */
 .martin-digital-clock .clock-component {
-    display: flex !important;
+    display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    padding: 6px 10px !important;
+
+    padding: 8px 12px !important;
+    width: auto !important;
+    min-width: unset !important;
+
+    background: #2B2926 !important;
+    border: 2px solid #cc1100 !important;
+    border-radius: 8px !important;
+
+    box-shadow: 0 0 8px rgba(180, 0, 0, 0.5),
+                inset 0 0 6px rgba(180, 0, 0, 0.1) !important;
+
+    overflow: hidden !important;   /* QUAN TRỌNG */
+}
+
+/* Canvas nằm gọn bên trong */
+.martin-digital-clock canvas,
+.martin-digital-clock .martin-led-canvas {
+    display: block !important;
+    max-width: 100% !important;    /* không vượt container */
+    height: auto !important;
+    transform: scale(0.9);
+    transform-origin: center;
 }
 `;
 document.head.appendChild(cleanStyle);
