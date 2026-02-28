@@ -8,12 +8,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const hideNotifications = document.getElementById("hideNotifications");
     const lowTimeAlert = document.getElementById("lowTimeAlert");
     const hideGameMessages = document.getElementById("hideGameMessages");
+    const digitalClock = document.getElementById("digitalClock");
 
     // ===== LOAD ALL SETTINGS =====
     chrome.storage.sync.get(
         ["largerClock", "hideOpponent", "cleanUI",
             "hideLogo", "hideAds", "hideNotifications",
-            "lowTimeAlert", "hideGameMessages"],
+            "lowTimeAlert", "hideGameMessages", "digitalClock"],
         (data) => {
             clockToggle.checked = data.largerClock || false;
             hideOpponentToggle.checked = data.hideOpponent || false;
@@ -23,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
             hideNotifications.checked = data.hideNotifications || false;
             lowTimeAlert.checked = data.lowTimeAlert || false;
             hideGameMessages.checked = data.hideGameMessages || false;
+            digitalClock.checked = data.digitalClock || false;
         }
     );
 
@@ -37,6 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
             hideNotifications: hideNotifications.checked,
             lowTimeAlert: lowTimeAlert.checked,
             hideGameMessages: hideGameMessages.checked,
+            digitalClock: digitalClock.checked,
         };
 
         chrome.storage.sync.set(settings);
@@ -60,6 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
         hideNotifications,
         lowTimeAlert,
         hideGameMessages,
+        digitalClock,
     ].forEach(el => el.addEventListener("change", updateSettings));
 
 });

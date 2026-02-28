@@ -32,27 +32,21 @@ style.textContent = `
 
 const timeAlertStyle = document.createElement("style");
 timeAlertStyle.textContent = `
-/* Cảnh báo Vàng: 15 giây */
 @keyframes martin-yellow-glow {
     0%   { background: #35322e; box-shadow: 0 0 5px rgba(255, 170, 0, 0.2); }
     50%  { background: linear-gradient(145deg, #ff9f00, #cc7a00); box-shadow: 0 0 20px rgba(255, 159, 0, 0.6); }
     100% { background: #35322e; box-shadow: 0 0 5px rgba(255, 170, 0, 0.2); }
 }
-
-/* Cảnh báo Đỏ: 10 giây */
 @keyframes martin-red-glow {
     0%   { background: #35322e; }
     50%  { background: linear-gradient(145deg, #ff0000, #b30000); box-shadow: 0 0 25px rgba(255, 0, 0, 0.8); }
     100% { background: #35322e; }
 }
-
-/* Cảnh báo Chí mạng: 5 giây */
 @keyframes martin-critical-glow {
     0%   { background: #35322e; transform: scale(1); }
     50%  { background: linear-gradient(145deg, #ff004c, #8b0000); box-shadow: 0 0 35px #ff0000, inset 0 0 10px rgba(255,255,255,0.3); transform: scale(1.08); }
     100% { background: #35322e; transform: scale(1); }
 }
-
 .martin-time-15 {
     animation: martin-yellow-glow 1.5s ease-in-out infinite;
     border-radius: 6px;
@@ -112,6 +106,149 @@ function stopLowTimeInterval() {
     if (myClock) myClock.classList.remove("martin-time-15", "martin-time-10", "martin-time-5");
 }
 
+// ===== DIGITAL CLOCK — 7-SEGMENT LED =====
+
+// Mỗi chữ số gồm 7 nét: [a, b, c, d, e, f, g]
+// a=top, b=top-right, c=bot-right, d=bot, e=bot-left, f=top-left, g=mid
+const SEGMENTS = {
+    '0': [1, 1, 1, 1, 1, 1, 0],
+    '1': [0, 1, 1, 0, 0, 0, 0],
+    '2': [1, 1, 0, 1, 1, 0, 1],
+    '3': [1, 1, 1, 1, 0, 0, 1],
+    '4': [0, 1, 1, 0, 0, 1, 1],
+    '5': [1, 0, 1, 1, 0, 1, 1],
+    '6': [1, 0, 1, 1, 1, 1, 1],
+    '7': [1, 1, 1, 0, 0, 0, 0],
+    '8': [1, 1, 1, 1, 1, 1, 1],
+    '9': [1, 1, 1, 1, 0, 1, 1],
+};
+
+const LED_ON = '#ff2200';
+const LED_OFF = 'rgba(255,34,0,0.07)';
+const S = 5;    // độ dày nét
+const DW = 26;   // digit width
+const DH = 44;   // digit height
+const CW = 12;   // colon width
+const GAP = 3;    // gap giữa ký tự
+
+function drawDigit(ctx, char, x, y) {
+    const segs = SEGMENTS[char];
+    if (!segs) return;
+    const [a, b, c, d, e, f, g] = segs;
+
+    // Nét ngang (top, mid, bot)
+    function hSeg(on, yy) {
+        ctx.fillStyle = on ? LED_ON : LED_OFF;
+        ctx.beginPath();
+        ctx.moveTo(x + S, yy + S * 0.5);
+        ctx.lineTo(x + S * 1.5, yy);
+        ctx.lineTo(x + DW - S * 1.5, yy);
+        ctx.lineTo(x + DW - S, yy + S * 0.5);
+        ctx.lineTo(x + DW - S * 1.5, yy + S);
+        ctx.lineTo(x + S * 1.5, yy + S);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // Nét dọc (top-left, top-right, bot-left, bot-right)
+    function vSeg(on, xx, yy) {
+        ctx.fillStyle = on ? LED_ON : LED_OFF;
+        ctx.beginPath();
+        ctx.moveTo(xx + S * 0.5, yy + S);
+        ctx.lineTo(xx + S, yy + S * 1.5);
+        ctx.lineTo(xx + S, yy + DH / 2 - S * 1.5);
+        ctx.lineTo(xx + S * 0.5, yy + DH / 2 - S);
+        ctx.lineTo(xx, yy + DH / 2 - S * 1.5);
+        ctx.lineTo(xx, yy + S * 1.5);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    hSeg(a, y);                        // top
+    vSeg(b, x + DW - S, y);           // top-right
+    vSeg(c, x + DW - S, y + DH / 2);    // bot-right
+    hSeg(d, y + DH - S);              // bottom
+    vSeg(e, x, y + DH / 2);             // bot-left
+    vSeg(f, x, y);                     // top-left
+    hSeg(g, y + DH / 2 - S / 2);          // middle
+}
+
+function drawColon(ctx, x, y) {
+    ctx.fillStyle = LED_ON;
+    const r = S * 0.85;
+    const cx = x + CW / 2;
+    ctx.beginPath(); ctx.arc(cx, y + DH * 0.3, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, y + DH * 0.7, r, 0, Math.PI * 2); ctx.fill();
+}
+
+function renderTime(canvas, timeStr) {
+    const chars = timeStr.replace(/\s/g, '').split('');
+
+    // Tính tổng width
+    let totalW = 0;
+    chars.forEach(c => { totalW += (c === ':' ? CW : DW) + GAP; });
+    totalW = Math.max(totalW - GAP, 1);
+
+    canvas.width = totalW;
+    canvas.height = DH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let x = 0;
+    chars.forEach(c => {
+        if (c === ':') {
+            drawColon(ctx, x, 0);
+            x += CW + GAP;
+        } else if (SEGMENTS[c]) {
+            drawDigit(ctx, c, x, 0);
+            x += DW + GAP;
+        }
+    });
+}
+
+function updateAllClocks() {
+    document.querySelectorAll('.clock-time-monospace').forEach(span => {
+        let timeText = span.innerText.trim();
+        if (!timeText) return;
+
+        // Chess.com hiển thị "0:16.2" khi < 20s — bỏ phần thập phân
+        timeText = timeText.replace(/\.\d+$/, '');
+
+        // Canvas đặt SAU span
+        let canvas = span.nextElementSibling;
+        if (!canvas || !canvas.classList.contains('martin-led-canvas')) {
+            canvas = document.createElement('canvas');
+            canvas.className = 'martin-led-canvas';
+            canvas.style.cssText = `
+                display: block;
+                filter: drop-shadow(0 0 5px #ff2200) drop-shadow(0 0 12px rgba(255,34,0,0.5));
+            `;
+            span.after(canvas);
+        }
+
+        renderTime(canvas, timeText);
+    });
+}
+
+let digitalClockInterval = null;
+
+function startDigitalClock() {
+    if (digitalClockInterval) return;
+    document.body.classList.add('martin-digital-clock');
+    updateAllClocks();
+    digitalClockInterval = setInterval(updateAllClocks, 200);
+}
+
+function stopDigitalClock() {
+    if (digitalClockInterval) {
+        clearInterval(digitalClockInterval);
+        digitalClockInterval = null;
+    }
+    document.body.classList.remove('martin-digital-clock');
+    document.querySelectorAll('.martin-led-canvas').forEach(c => c.remove());
+}
+
 // ===== FULLSCREEN BUTTON =====
 const btn = document.createElement("button");
 btn.innerText = "⛶";
@@ -161,6 +298,9 @@ function applySettings(settings) {
 
     // Hide Game Messages
     document.body.classList.toggle("martin-hide-game-messages", !!settings.hideGameMessages);
+
+    // Digital Clock
+    settings.digitalClock ? startDigitalClock() : stopDigitalClock();
 }
 
 // ===== HIDE OPPONENT =====
@@ -238,7 +378,7 @@ chrome.runtime.onMessage.addListener((message) => {
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
     ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
-        "hideNotifications", "lowTimeAlert", "hideGameMessages"],
+        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock"],
     (data) => {
         currentSettings = data;
         applySettings(currentSettings);
@@ -265,10 +405,8 @@ cleanStyle.textContent = `
 
 /* Clean UI toggles */
 .martin-hide-logo .header-logo { display: none !important; }
-
 .martin-hide-ads .advertisement,
 .martin-hide-ads [class*="ad-"] { display: none !important; }
-
 .martin-hide-notifications .notification-area,
 .martin-hide-notifications [class*="notification"] { display: none !important; }
 
@@ -276,8 +414,29 @@ cleanStyle.textContent = `
 .martin-hide-game-messages .game-over-message-component,
 .martin-hide-game-messages .game-rate-sport-message-component,
 .martin-hide-game-messages .game-start-message-component,
-.martin-hide-game-messages .chat-input-component {
+.martin-hide-game-messages .chat-input-component,
+.martin-hide-game-messages .chat-room-chat,
+.martin-hide-game-messages .resizable-chat-area-component {
     display: none !important;
+}
+
+/* Digital Clock — ẩn text gốc bằng font-size 0, giữ layout */
+.martin-digital-clock .clock-time-monospace {
+    font-size: 0 !important;
+    line-height: 0 !important;
+    color: transparent !important;
+}
+
+.martin-digital-clock .clock-icon-icon {
+    display: none !important;
+}
+
+/* Căn chỉnh clock container để canvas hiển thị đẹp */
+.martin-digital-clock .clock-component {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 6px 10px !important;
 }
 `;
 document.head.appendChild(cleanStyle);
