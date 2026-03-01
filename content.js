@@ -492,21 +492,46 @@ document.head.appendChild(cleanStyle);
             el.className = 'martin-move';
             const bw = Math.max(2, cell * 0.065);
 
-            el.style.cssText = `
+            if (!isCap) {
+                // Move thường chấm tròn vàng nhỏ
+                el.style.cssText = `
                 position: fixed;
-                left: ${x + bw / 2}px;
-                top:  ${y + bw / 2}px;
-                width:  ${cell - bw}px;
-                height: ${cell - bw}px;
-                background: ${isCap ? 'rgba(255,0,0,0.18)' : 'rgba(200,0,0,0.07)'};
-                border: ${bw}px solid ${isCap ? 'rgba(255,0,0,0.95)' : 'rgba(190,0,0,0.75)'};
-                border-radius: 3px;
-                box-shadow: ${isCap
-                    ? `inset 0 0 ${cell * 0.18}px rgba(255,0,0,0.45), 0 0 ${cell * 0.2}px rgba(255,0,0,0.7)`
-                    : `inset 0 0 ${cell * 0.08}px rgba(180,0,0,0.25)`};
-                box-sizing: border-box;
+                left: ${x}px;
+                top: ${y}px;
+                width: ${cell}px;
+                height: ${cell}px;
                 pointer-events: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                `;
+
+                const dot = document.createElement("div");
+                dot.style.cssText = `
+                width: ${cell * 0.22}px;
+                height: ${cell * 0.22}px;
+                background: #FFD700;
+                border-radius: 50%;
+                `;
+
+                el.appendChild(dot);
+
+            } else {
+                // Capture vòng tròn bao quanh quân
+                el.style.cssText = `
+                position: fixed;
+                left: ${x}px;
+                top: ${y}px;
+                width: ${cell}px;
+                height: ${cell}px;
+                pointer-events: none;
+                box-sizing: border-box;
+                border-radius: 50%;
+                border: 3px solid #ff0000;
+                background: radial-gradient(circle, transparent 60%, rgba(255,0,0,0.12) 100%);
+                box-shadow: 0 0 ${cell * 0.15}px rgba(255,0,0,0.5);
             `;
+            }
             ov.appendChild(el);
         });
         log('Rendered', moves.length, 'moves, captures:', captureSet.size);
