@@ -17,12 +17,10 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "assets/chess1.png",
-                "assets/white_king.png",
-                "assets/black_king.png"
+                "assets/happy-face.png"
             ],
             "matches": [
-                "<all_urls>"
+                "*://www.chess.com/*"
             ]
         }
     ],

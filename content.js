@@ -1,30 +1,34 @@
 const style = document.createElement("style");
 style.textContent = `
-.martin-hide-opponent 
-[class*="player"]:not([class*="bottom"]) 
-.player-tagline {
-    background: #302E2B;
-    backdrop-filter: blur(6px);
-    border-radius: 6px;
-}
-.martin-hide-opponent 
-[class*="player"]:not([class*="bottom"]) 
-.player-tagline * {
+/* ===== HIDE OPPONENT - ẩn hết trừ clock và captured pieces ===== */
+
+/* Ẩn toàn bộ player-top, sau đó show lại những gì cần giữ */
+.martin-hide-opponent #board-layout-player-top > * {
     visibility: hidden !important;
 }
-.martin-hide-opponent 
-[class*="player"]:not([class*="bottom"]) 
-.player-tagline::after {
-    content: "No name";
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: left;
-    justify-content: left;
-    color: white;
-    font-weight: bold;
-    font-size: 14px;
-    letter-spacing: 1px;
+
+/* Giữ lại đồng hồ */
+.martin-hide-opponent #board-layout-player-top [class*="clock"],
+.martin-hide-opponent #board-layout-player-top [class*="Clock"] {
+    visibility: visible !important;
+}
+.martin-hide-opponent #board-layout-player-top [class*="clock"] *,
+.martin-hide-opponent #board-layout-player-top [class*="Clock"] * {
+    visibility: visible !important;
+}
+
+/* Giữ lại captured pieces */
+.martin-hide-opponent #board-layout-player-top [class*="captured"],
+.martin-hide-opponent #board-layout-player-top [class*="material"],
+.martin-hide-opponent #board-layout-player-top [class*="Captured"],
+.martin-hide-opponent #board-layout-player-top [class*="Material"] {
+    visibility: visible !important;
+}
+.martin-hide-opponent #board-layout-player-top [class*="captured"] *,
+.martin-hide-opponent #board-layout-player-top [class*="material"] *,
+.martin-hide-opponent #board-layout-player-top [class*="Captured"] *,
+.martin-hide-opponent #board-layout-player-top [class*="Material"] * {
+    visibility: visible !important;
 }
 `;
 
@@ -215,55 +219,52 @@ function applySettings(settings) {
 }
 
 // ===== HIDE OPPONENT =====
-function getOpponentKingImg() {
-    // Chess.com gán class 'black' vào board khi người chơi là đen (board bị flip)
-    const board = document.querySelector('wc-chess-board, chess-board');
-    const playerIsBlack = board ? board.classList.contains('flipped') : false;
-    // Opponent = ngược màu người chơi
-    return playerIsBlack ? 'assets/white_king.png' : 'assets/black_king.png';
-}
-
 function toggleOpponentVisibility(hide) {
     document.body.classList.toggle("martin-hide-opponent", !!hide);
-    const avatars = document.querySelectorAll('[data-cy="avatar"]');
-    avatars.forEach(avatar => {
-        // Tìm player block chứa avatar này
+
+    // Chỉ tìm các avatar nằm trong khu vực của đối thủ (player-top)
+    const opponentAvatars = document.querySelectorAll('#board-layout-player-top [data-cy="avatar"], .board-layout-player-top [data-cy="avatar"]');
+
+    opponentAvatars.forEach(avatar => {
         const playerBlock = avatar.closest('[class*="player"]');
         if (!playerBlock) return;
-        // Bỏ qua nếu là player của mình (bottom)
-        // Chess.com dùng class như: player-component--bottom, layout-player-bottom, v.v.
-        const cls = playerBlock.className || '';
-        const isBottom = /bottom/i.test(cls);
-        if (isBottom) return;
+
         if (hide) {
+            // Lưu lại ảnh gốc để có thể khôi phục sau này
             if (!avatar.dataset.originalSrc) {
                 avatar.dataset.originalSrc = avatar.src;
                 avatar.dataset.originalSrcset = avatar.srcset;
             }
+
             try {
-                const kingImg = getOpponentKingImg();
-                avatar.src = chrome.runtime.getURL(kingImg);
+                // Thay bằng ảnh happy-face.png từ thư mục extension
+                avatar.src = chrome.runtime.getURL('assets/happy-face.png');
+                avatar.srcset = "";
             } catch (e) { return; }
-            avatar.srcset = "";
+
+            // Ẩn tên và rating của đối thủ
             const userTagline = playerBlock.querySelector('[class*="user-tagline"]');
             if (userTagline) {
                 userTagline.querySelectorAll('*').forEach(el => {
-                    if (!el.dataset.originalVisibility) el.dataset.originalVisibility = el.style.visibility || '';
+                    if (!el.dataset.originalVisibility) el.dataset.originalVisibility = el.style.visibility || 'visible';
                     el.style.visibility = 'hidden';
                 });
             }
-            playerBlock.querySelectorAll('[data-cy="country-flag"],.flag,[data-test-element="user-tagline-rating"]')
+
+            playerBlock.querySelectorAll('[data-cy="country-flag"], .flag, [data-test-element="user-tagline-rating"]')
                 .forEach(el => {
-                    if (!el.dataset.originalDisplay) el.dataset.originalDisplay = el.style.display || '';
+                    if (!el.dataset.originalDisplay) el.dataset.originalDisplay = el.style.display || 'block';
                     el.style.display = 'none';
                 });
         } else {
+            // Khôi phục lại như cũ khi tắt tính năng
             if (avatar.dataset.originalSrc) {
                 avatar.src = avatar.dataset.originalSrc;
                 avatar.srcset = avatar.dataset.originalSrcset || "";
                 delete avatar.dataset.originalSrc;
                 delete avatar.dataset.originalSrcset;
             }
+
             const userTagline = playerBlock.querySelector('[class*="user-tagline"]');
             if (userTagline) {
                 userTagline.querySelectorAll('*').forEach(el => {
@@ -273,7 +274,8 @@ function toggleOpponentVisibility(hide) {
                     }
                 });
             }
-            playerBlock.querySelectorAll('[data-cy="country-flag"],.flag,[data-test-element="user-tagline-rating"]')
+
+            playerBlock.querySelectorAll('[data-cy="country-flag"], .flag, [data-test-element="user-tagline-rating"]')
                 .forEach(el => {
                     if (el.dataset.originalDisplay !== undefined) {
                         el.style.display = el.dataset.originalDisplay;
