@@ -2,57 +2,73 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
     <link rel="stylesheet" href="popup.css">
 </head>
 
 <body>
-    <h2>MartinChessVN</h2>
-
-    <label>
-        <input type="checkbox" id="clockToggle">
-        Larger Clock
-    </label>
-
-    <label>
-        <input type="checkbox" id="hideOpponentToggle">
-        Hide Opponent
-    </label>
-
-    <hr>
-    <label>
-        <input type="checkbox" id="cleanUI">
-        Clean UI Mode
-    </label>
-
-    <div style="margin-left:15px; margin-top:8px;">
-        <label><input type="checkbox" id="hideLogo"> Hide Logo</label>
-        <label><input type="checkbox" id="hideAds"> Hide Ads</label>
-        <label><input type="checkbox" id="hideNotifications"> Hide Notifications</label>
+    <div class="header">
+        <h1>Martin<span>Chess</span>VN</h1>
+        <div class="version">v2.0 Pro</div>
     </div>
 
-    <hr>
-    <label>
-        <input type="checkbox" id="lowTimeAlert">
-        Low Time Alert
-    </label>
+    <div class="container">
+        <div class="section-title">GAMEPLAY</div>
+        <div class="card">
+            <label class="switch-container">
+                <span>Larger Clock</span>
+                <input type="checkbox" id="clockToggle">
+                <span class="slider"></span>
+            </label>
+            <label class="switch-container">
+                <span>Legal Moves Overlay</span>
+                <input type="checkbox" id="legalMoves">
+                <span class="slider"></span>
+            </label>
+            <label class="switch-container">
+                <span>Low Time Alert (Neon)</span>
+                <input type="checkbox" id="lowTimeAlert">
+                <span class="slider"></span>
+            </label>
+        </div>
 
-    <hr>
-    <label>
-        <input type="checkbox" id="hideGameMessages">
-        Hide Game Messages
-    </label>
+        <div class="section-title">VISUAL STYLE</div>
+        <div class="card">
+            <label class="switch-container">
+                <span>Digital LED Clock</span>
+                <input type="checkbox" id="digitalClock">
+                <span class="slider"></span>
+            </label>
+            <label class="switch-container">
+                <span>Hide Opponent (Focus)</span>
+                <input type="checkbox" id="hideOpponentToggle">
+                <span class="slider"></span>
+            </label>
+        </div>
 
-    <hr>
-    <label>
-        <input type="checkbox" id="digitalClock">
-        Digital Clock (LED 7-segment)
-    </label>
-
-    <hr>
-    <label>
-        <input type="checkbox" id="legalMoves">
-        Legal Moves
-    </label>
+        <div class="section-title">DISTRACTION FREE</div>
+        <div class="card">
+            <label class="switch-container primary">
+                <span class="highlight">Clean UI Mode</span>
+                <input type="checkbox" id="cleanUI">
+                <span class="slider"></span>
+            </label>
+            <div class="sub-options" id="cleanUISub">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="hideLogo"> <span>Hide Logo</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="hideAds"> <span>Hide Ads</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="hideNotifications"> <span>Notifications</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="hideGameMessages"> <span>Messages</span>
+                </label>
+            </div>
+        </div>
+    </div>
 
     <script src="popup.js"></script>
 </body>
