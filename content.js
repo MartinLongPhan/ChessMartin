@@ -363,9 +363,9 @@ cleanStyle.textContent = `
 #martin-overlay .martin-origin {
     position: fixed;
     pointer-events: none;
-    background: rgba(192,61,165,0.12);
-    border: 2px solid rgba(192,61,165,0.75);
-    box-shadow: 0 0 12px rgba(192,61,165,0.5);
+    background: rgba(255, 0, 0, 0.15); /* Màu nền đỏ rất nhạt để không che mất ô cờ */
+    border: 2px solid rgba(255, 0, 0, 0.8); /* Viền đỏ rõ nét */
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); /* Hiệu ứng phát sáng đỏ lan tỏa */
     border-radius: 4px;
     transition: opacity 0.15s ease;
 }
@@ -521,33 +521,50 @@ document.head.appendChild(cleanStyle);
             ov.appendChild(origin);
         }
 
+        // Tìm đến đoạn này trong hàm renderDots của bạn và thay thế:
         moves.forEach(sq => {
             const { x, y, cell } = sqToPixel(sq, rect, flipped);
             const isCap = captureSet.has(sq);
             const el = document.createElement('div');
             el.className = 'martin-move';
-            const bw = Math.max(2, cell * 0.065);
+
+            // Cấu hình khung ⛶
+            const borderSize = Math.max(2, cell * 0.06);
+            const cornerLen = '28%'; // Tăng lên một chút cho rõ góc
+            const redColor = 'rgba(255, 0, 0, 1)'; // Đỏ thuần cực đậm
 
             el.style.cssText = `
-    position: fixed;
-    left: ${x + cell * 0.5 - (isCap ? cell * 0.4 : cell * 0.09)}px;
-    top:  ${y + cell * 0.5 - (isCap ? cell * 0.4 : cell * 0.09)}px;
-    
-    width:  ${isCap ? cell * 0.8 : cell * 0.18}px;
-    height: ${isCap ? cell * 0.8 : cell * 0.18}px;
-    
-    background: ${isCap ? 'transparent' : 'rgba(192,61,165,0.85)'};
-    border: ${isCap ? `${Math.max(2, cell * 0.07)}px solid rgba(192,61,165,0.9)` : 'none'};
-    border-radius: 50%;
-    
-    box-shadow: ${isCap
-                    ? `0 0 ${cell * 0.2}px rgba(192,61,165,0.6)`
-                    : `0 0 ${cell * 0.06}px rgba(192,61,165,0.5)`};
-    
-    box-sizing: border-box;
-    pointer-events: none;
-    z-index: 9999;
-`;
+        position: fixed;
+        left: ${x + cell * 0.5 - (isCap ? cell * 0.45 : cell * 0.09)}px;
+        top:  ${y + cell * 0.5 - (isCap ? cell * 0.45 : cell * 0.09)}px;
+        width:  ${isCap ? cell * 0.9 : cell * 0.18}px;
+        height: ${isCap ? cell * 0.9 : cell * 0.18}px;
+        
+        background: ${isCap
+                    ? `linear-gradient(to right, ${redColor} ${borderSize}px, transparent ${borderSize}px) 0 0,
+               linear-gradient(to right, ${redColor} ${borderSize}px, transparent ${borderSize}px) 0 100%,
+               linear-gradient(to left, ${redColor} ${borderSize}px, transparent ${borderSize}px) 100% 0,
+               linear-gradient(to left, ${redColor} ${borderSize}px, transparent ${borderSize}px) 100% 100%,
+               linear-gradient(to bottom, ${redColor} ${borderSize}px, transparent ${borderSize}px) 0 0,
+               linear-gradient(to bottom, ${redColor} ${borderSize}px, transparent ${borderSize}px) 100% 0,
+               linear-gradient(to top, ${redColor} ${borderSize}px, transparent ${borderSize}px) 0 100%,
+               linear-gradient(to top, ${redColor} ${borderSize}px, transparent ${borderSize}px) 100% 100%`
+                    : redColor};
+        
+        background-repeat: no-repeat !important;
+        background-size: ${isCap ? `${cornerLen} ${cornerLen}` : '100% 100%'} !important;
+        
+        border: none !important; 
+        border-radius: ${isCap ? '2px' : '50%'};
+        
+        box-shadow: ${isCap
+                    ? `0 0 ${cell * 0.1}px rgba(255, 0, 0, 0.6)`
+                    : `0 0 ${cell * 0.06}px rgba(255, 0, 0, 0.5)`};
+        
+        box-sizing: border-box;
+        pointer-events: none;
+        z-index: 9999;
+    `;
             ov.appendChild(el);
         });
         log('Rendered', moves.length, 'moves, captures:', captureSet.size);
