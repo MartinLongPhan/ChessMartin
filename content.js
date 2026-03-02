@@ -363,14 +363,14 @@ cleanStyle.textContent = `
 #martin-overlay .martin-origin {
     position: fixed;
     pointer-events: none;
-    background: rgba(255,0,0,0.12);
-    border: 2px solid rgba(255,0,0,0.75);
-    box-shadow: 0 0 12px rgba(255,0,0,0.5);
+    background: rgba(192,61,165,0.12);
+    border: 2px solid rgba(192,61,165,0.75);
+    box-shadow: 0 0 12px rgba(192,61,165,0.5);
     border-radius: 4px;
     transition: opacity 0.15s ease;
 }
 
-/* Ẩn highlight gốc của Chess.com khi Martin Legal Moves đang bật */
+/*  */
 .martin-legal-active wc-chess-board .selected-squares,
 .martin-legal-active wc-chess-board [class*="selected"],
 .martin-legal-active wc-chess-board .legal-moves-overlay,
@@ -397,7 +397,7 @@ document.head.appendChild(cleanStyle);
     function log(...args) { console.log('[MartinLegal]', ...args); }
 
     // ===== STATE =====
-    let enabled = false;  // controlled via window._martinSetLegalMoves
+    let enabled = false;
     let selectedSq = null;
 
     // ===== WINDOW BRIDGE — applySettings() gọi từ ngoài IIFE =====
@@ -529,20 +529,25 @@ document.head.appendChild(cleanStyle);
             const bw = Math.max(2, cell * 0.065);
 
             el.style.cssText = `
-                position: fixed;
-                left: ${x + bw / 2}px;
-                top:  ${y + bw / 2}px;
-                width:  ${cell - bw}px;
-                height: ${cell - bw}px;
-                background: ${isCap ? 'rgba(255,0,0,0.18)' : 'rgba(200,0,0,0.07)'};
-                border: ${bw}px solid ${isCap ? 'rgba(255,0,0,0.95)' : 'rgba(190,0,0,0.75)'};
-                border-radius: 3px;
-                box-shadow: ${isCap
-                    ? `inset 0 0 ${cell * 0.18}px rgba(255,0,0,0.45), 0 0 ${cell * 0.2}px rgba(255,0,0,0.7)`
-                    : `inset 0 0 ${cell * 0.08}px rgba(180,0,0,0.25)`};
-                box-sizing: border-box;
-                pointer-events: none;
-            `;
+    position: fixed;
+    left: ${x + cell * 0.5 - (isCap ? cell * 0.4 : cell * 0.09)}px;
+    top:  ${y + cell * 0.5 - (isCap ? cell * 0.4 : cell * 0.09)}px;
+    
+    width:  ${isCap ? cell * 0.8 : cell * 0.18}px;
+    height: ${isCap ? cell * 0.8 : cell * 0.18}px;
+    
+    background: ${isCap ? 'transparent' : 'rgba(192,61,165,0.85)'};
+    border: ${isCap ? `${Math.max(2, cell * 0.07)}px solid rgba(192,61,165,0.9)` : 'none'};
+    border-radius: 50%;
+    
+    box-shadow: ${isCap
+                    ? `0 0 ${cell * 0.2}px rgba(192,61,165,0.6)`
+                    : `0 0 ${cell * 0.06}px rgba(192,61,165,0.5)`};
+    
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 9999;
+`;
             ov.appendChild(el);
         });
         log('Rendered', moves.length, 'moves, captures:', captureSet.size);
