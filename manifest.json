@@ -17,7 +17,7 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "assets/chess.png"
+                "assets/chess1.png"
             ],
             "matches": [
                 "<all_urls>"

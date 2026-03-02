@@ -15,7 +15,7 @@ style.textContent = `
 .martin-hide-opponent 
 [class*="player"]:not([class*="bottom"]) 
 .player-tagline::after {
-    content: "Anonymous Opponent";
+    content: "No name";
     position: absolute;
     inset: 0;
     display: flex;
@@ -227,7 +227,7 @@ function toggleOpponentVisibility(hide) {
                 avatar.dataset.originalSrc = avatar.src;
                 avatar.dataset.originalSrcset = avatar.srcset;
             }
-            try { avatar.src = chrome.runtime.getURL("assets/chess.png"); } catch (e) { return; }
+            try { avatar.src = chrome.runtime.getURL("assets/chess1.png"); } catch (e) { return; }
             avatar.srcset = "";
             const userTagline = playerBlock.querySelector('[class*="user-tagline"]');
             if (userTagline) {
