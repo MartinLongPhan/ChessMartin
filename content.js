@@ -371,8 +371,6 @@ cleanStyle.textContent = `
 }
 
 /* Ẩn highlight gốc của Chess.com khi Martin Legal Moves đang bật */
-.martin-legal-active wc-chess-board .highlight,
-.martin-legal-active wc-chess-board [class*="highlight"],
 .martin-legal-active wc-chess-board .selected-squares,
 .martin-legal-active wc-chess-board [class*="selected"],
 .martin-legal-active wc-chess-board .legal-moves-overlay,
