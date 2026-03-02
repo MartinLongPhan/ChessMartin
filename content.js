@@ -52,6 +52,12 @@ timeAlertStyle.textContent = `
 .martin-time-15 { animation: martin-yellow-glow 1.5s ease-in-out infinite; border-radius: 6px; border: 1px solid rgba(255,159,0,0.3); }
 .martin-time-10 { animation: martin-red-glow 0.8s ease-in-out infinite; border-radius: 6px; border: 1px solid rgba(255,0,0,0.5); }
 .martin-time-5  { animation: martin-critical-glow 0.4s cubic-bezier(0.4,0,0.6,1) infinite; border-radius: 6px; z-index: 10; border: 1px solid #ff0000; }
+
+
+.martin-led-canvas.martin-time-15 { animation: martin-yellow-glow 1.5s ease-in-out infinite; ... }
+.martin-led-canvas.martin-time-10 { animation: martin-red-glow 0.8s ease-in-out infinite; ... }
+.martin-led-canvas.martin-time-5  { animation: martin-critical-glow 0.4s ... infinite; ... }
+
 `;
 document.head.appendChild(timeAlertStyle);
 document.head.appendChild(style);
@@ -60,6 +66,7 @@ document.head.appendChild(style);
 function checkLowTime() {
     const myClock = document.querySelector('[class*="clock-bottom"] .clock-time-monospace');
     if (!myClock) return;
+
     const timeText = myClock.innerText.trim();
     let seconds = 0;
     if (timeText.includes(":")) {
@@ -68,16 +75,29 @@ function checkLowTime() {
     } else {
         seconds = parseInt(timeText);
     }
-    myClock.classList.remove("martin-time-15", "martin-time-10", "martin-time-5");
+
+    // Target cả span lẫn canvas kế bên
+    const canvas = myClock.nextElementSibling?.classList.contains('martin-led-canvas')
+        ? myClock.nextElementSibling
+        : null;
+    const target = canvas || myClock;
+
+    target.classList.remove("martin-time-15", "martin-time-10", "martin-time-5");
+    myClock.classList.remove("martin-time-15", "martin-time-10", "martin-time-5"); // clean cả span
+
     if (!currentSettings.lowTimeAlert) return;
-    if (seconds <= 5) myClock.classList.add("martin-time-5");
-    else if (seconds <= 10) myClock.classList.add("martin-time-10");
-    else if (seconds <= 15) myClock.classList.add("martin-time-15");
+    if (seconds <= 5) target.classList.add("martin-time-5");
+    else if (seconds <= 10) target.classList.add("martin-time-10");
+    else if (seconds <= 15) target.classList.add("martin-time-15");
 }
 
 let lowTimeInterval = null;
+// function startLowTimeInterval() {
+//     if (lowTimeInterval) return;
+//     lowTimeInterval = setInterval(checkLowTime, 500);
+// }
 function startLowTimeInterval() {
-    if (lowTimeInterval) return;
+    if (lowTimeInterval) clearInterval(lowTimeInterval);
     lowTimeInterval = setInterval(checkLowTime, 500);
 }
 function stopLowTimeInterval() {
@@ -92,8 +112,10 @@ const SEGMENTS = {
     '3': [1, 1, 1, 1, 0, 0, 1], '4': [0, 1, 1, 0, 0, 1, 1], '5': [1, 0, 1, 1, 0, 1, 1],
     '6': [1, 0, 1, 1, 1, 1, 1], '7': [1, 1, 1, 0, 0, 0, 0], '8': [1, 1, 1, 1, 1, 1, 1], '9': [1, 1, 1, 1, 0, 1, 1],
 };
-const LED_ON = '#cc1100';
-const LED_OFF = 'rgba(180,20,0,0.10)';
+// const LED_ON = '#cc1100';
+// const LED_OFF = 'rgba(180,20,0,0.10)';
+const LED_ON = '#000000'; // Màu đen cho các thanh đang sáng
+const LED_OFF = 'rgba(0, 0, 0, 0.05)';
 const S = 3;
 const DW = 16;
 const DH = 26;
@@ -129,8 +151,16 @@ function drawDigit(ctx, char, x, y) {
     hSeg(g, y + DH / 2 - S / 2);
 }
 
+// function drawColon(ctx, x, y) {
+//     ctx.fillStyle = LED_ON;
+//     const r = S * 0.85;
+//     const cx = x + CW / 2;
+//     ctx.beginPath(); ctx.arc(cx, y + DH * 0.3, r, 0, Math.PI * 2); ctx.fill();
+//     ctx.beginPath(); ctx.arc(cx, y + DH * 0.7, r, 0, Math.PI * 2); ctx.fill();
+// }
+
 function drawColon(ctx, x, y) {
-    ctx.fillStyle = LED_ON;
+    ctx.fillStyle = LED_ON; // Sẽ là màu #000000
     const r = S * 0.85;
     const cx = x + CW / 2;
     ctx.beginPath(); ctx.arc(cx, y + DH * 0.3, r, 0, Math.PI * 2); ctx.fill();
@@ -342,10 +372,11 @@ cleanStyle.textContent = `
     width: auto !important;
     min-width: unset !important;
     max-height: 44px !important;
-    background: #2B2926 !important;
-    border: 2px solid #cc1100 !important;
+    /* Thay đổi tại đây: */
+    background: #f0f0f0 !important; /* Nền xám trắng nhẹ */
+    border: 2px solid #333333 !important; /* Viền đen/xám đậm */
     border-radius: 6px !important;
-    box-shadow: 0 0 8px rgba(180,0,0,0.5), inset 0 0 6px rgba(180,0,0,0.1) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.05) !important;
     overflow: hidden !important;
 }
 .martin-digital-clock .martin-led-canvas {
