@@ -49,10 +49,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs[0]?.id) return;
-            chrome.tabs.sendMessage(tabs[0].id, {
-                action: "updateSettings",
-                ...settings
-            });
+
+            chrome.tabs.sendMessage(
+                tabs[0].id,
+                {
+                    action: "updateSettings",
+                    ...settings
+                },
+                () => {
+                    if (chrome.runtime.lastError) {
+                        return;
+                    }
+                }
+            );
         });
     }
 
