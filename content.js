@@ -15,7 +15,7 @@ style.textContent = `
 .martin-hide-opponent 
 [class*="player"]:not([class*="bottom"]) 
 .player-tagline::after {
-    content: "No name";
+    content: "Anonymous Opponent";
     position: absolute;
     inset: 0;
     display: flex;
@@ -215,19 +215,35 @@ function applySettings(settings) {
 }
 
 // ===== HIDE OPPONENT =====
+function getOpponentKingImg() {
+    // Chess.com gán class 'black' vào board khi người chơi là đen (board bị flip)
+    const board = document.querySelector('wc-chess-board, chess-board');
+    const playerIsBlack = board ? board.classList.contains('flipped') : false;
+    // Opponent = ngược màu người chơi
+    return playerIsBlack ? 'assets/white_king.png' : 'assets/black_king.png';
+}
+
 function toggleOpponentVisibility(hide) {
     document.body.classList.toggle("martin-hide-opponent", !!hide);
     const avatars = document.querySelectorAll('[data-cy="avatar"]');
     avatars.forEach(avatar => {
+        // Tìm player block chứa avatar này
         const playerBlock = avatar.closest('[class*="player"]');
         if (!playerBlock) return;
-        if (playerBlock.matches('[class*="bottom"]')) return;
+        // Bỏ qua nếu là player của mình (bottom)
+        // Chess.com dùng class như: player-component--bottom, layout-player-bottom, v.v.
+        const cls = playerBlock.className || '';
+        const isBottom = /bottom/i.test(cls);
+        if (isBottom) return;
         if (hide) {
             if (!avatar.dataset.originalSrc) {
                 avatar.dataset.originalSrc = avatar.src;
                 avatar.dataset.originalSrcset = avatar.srcset;
             }
-            try { avatar.src = chrome.runtime.getURL("assets/chess1.png"); } catch (e) { return; }
+            try {
+                const kingImg = getOpponentKingImg();
+                avatar.src = chrome.runtime.getURL(kingImg);
+            } catch (e) { return; }
             avatar.srcset = "";
             const userTagline = playerBlock.querySelector('[class*="user-tagline"]');
             if (userTagline) {
@@ -353,6 +369,26 @@ cleanStyle.textContent = `
     border-radius: 4px;
     transition: opacity 0.15s ease;
 }
+
+/* Ẩn highlight gốc của Chess.com khi Martin Legal Moves đang bật */
+.martin-legal-active wc-chess-board .highlight,
+.martin-legal-active wc-chess-board [class*="highlight"],
+.martin-legal-active wc-chess-board .selected-squares,
+.martin-legal-active wc-chess-board [class*="selected"],
+.martin-legal-active wc-chess-board .legal-moves-overlay,
+.martin-legal-active wc-chess-board [class*="legal-move"],
+.martin-legal-active wc-chess-board [data-test-element="move-destination"],
+.martin-legal-active wc-chess-board .piece-square-targets,
+.martin-legal-active wc-chess-board [class*="hint"] {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+/* Ẩn viền trắng hover/click gốc của chess.com */
+.martin-legal-active wc-chess-board .hover-square {
+    visibility: hidden !important;
+    display: none !important;
+}
 `;
 document.head.appendChild(cleanStyle);
 
@@ -370,6 +406,8 @@ document.head.appendChild(cleanStyle);
     window._martinSetLegalMoves = function (val) {
         enabled = !!val;
         log('legalMoves enabled:', enabled);
+        // Toggle class trên body để CSS override highlight gốc chess.com
+        document.body.classList.toggle('martin-legal-active', enabled);
         if (!enabled) clearOverlay();
     };
 
@@ -492,46 +530,21 @@ document.head.appendChild(cleanStyle);
             el.className = 'martin-move';
             const bw = Math.max(2, cell * 0.065);
 
-            if (!isCap) {
-                // Move thường chấm tròn vàng nhỏ
-                el.style.cssText = `
+            el.style.cssText = `
                 position: fixed;
-                left: ${x}px;
-                top: ${y}px;
-                width: ${cell}px;
-                height: ${cell}px;
-                pointer-events: none;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                `;
-
-                const dot = document.createElement("div");
-                dot.style.cssText = `
-                width: ${cell * 0.22}px;
-                height: ${cell * 0.22}px;
-                background: #FFD700;
-                border-radius: 50%;
-                `;
-
-                el.appendChild(dot);
-
-            } else {
-                // Capture vòng tròn bao quanh quân
-                el.style.cssText = `
-                position: fixed;
-                left: ${x}px;
-                top: ${y}px;
-                width: ${cell}px;
-                height: ${cell}px;
-                pointer-events: none;
+                left: ${x + bw / 2}px;
+                top:  ${y + bw / 2}px;
+                width:  ${cell - bw}px;
+                height: ${cell - bw}px;
+                background: ${isCap ? 'rgba(255,0,0,0.18)' : 'rgba(200,0,0,0.07)'};
+                border: ${bw}px solid ${isCap ? 'rgba(255,0,0,0.95)' : 'rgba(190,0,0,0.75)'};
+                border-radius: 3px;
+                box-shadow: ${isCap
+                    ? `inset 0 0 ${cell * 0.18}px rgba(255,0,0,0.45), 0 0 ${cell * 0.2}px rgba(255,0,0,0.7)`
+                    : `inset 0 0 ${cell * 0.08}px rgba(180,0,0,0.25)`};
                 box-sizing: border-box;
-                border-radius: 50%;
-                border: 3px solid #ff0000;
-                background: radial-gradient(circle, transparent 60%, rgba(255,0,0,0.12) 100%);
-                box-shadow: 0 0 ${cell * 0.15}px rgba(255,0,0,0.5);
+                pointer-events: none;
             `;
-            }
             ov.appendChild(el);
         });
         log('Rendered', moves.length, 'moves, captures:', captureSet.size);
