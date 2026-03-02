@@ -35,29 +35,40 @@ style.textContent = `
 const timeAlertStyle = document.createElement("style");
 timeAlertStyle.textContent = `
 @keyframes martin-yellow-glow {
-    0%   { background: #35322e; box-shadow: 0 0 5px rgba(255,170,0,0.2); }
-    50%  { background: linear-gradient(145deg,#ff9f00,#cc7a00); box-shadow: 0 0 20px rgba(255,159,0,0.6); }
-    100% { background: #35322e; box-shadow: 0 0 5px rgba(255,170,0,0.2); }
+    0%   { box-shadow: 0 0 6px rgba(0,150,255,0.4), 0 0 12px rgba(0,150,255,0.2); border-color: rgba(0,150,255,0.7); }
+    50%  { box-shadow: 0 0 14px rgba(0,180,255,0.9), 0 0 28px rgba(0,150,255,0.5), inset 0 0 8px rgba(0,150,255,0.15); border-color: rgba(0,180,255,1); }
+    100% { box-shadow: 0 0 6px rgba(0,150,255,0.4), 0 0 12px rgba(0,150,255,0.2); border-color: rgba(0,150,255,0.7); }
 }
 @keyframes martin-red-glow {
-    0%   { background: #35322e; }
-    50%  { background: linear-gradient(145deg,#ff0000,#b30000); box-shadow: 0 0 25px rgba(255,0,0,0.8); }
-    100% { background: #35322e; }
+    0%   { box-shadow: 0 0 8px rgba(140,0,255,0.5), 0 0 18px rgba(140,0,255,0.25); border-color: rgba(140,0,255,0.8); }
+    50%  { box-shadow: 0 0 18px rgba(180,0,255,1), 0 0 36px rgba(140,0,255,0.6), inset 0 0 10px rgba(160,0,255,0.2); border-color: rgba(180,0,255,1); }
+    100% { box-shadow: 0 0 8px rgba(140,0,255,0.5), 0 0 18px rgba(140,0,255,0.25); border-color: rgba(140,0,255,0.8); }
 }
 @keyframes martin-critical-glow {
-    0%   { background: #35322e; transform: scale(1); }
-    50%  { background: linear-gradient(145deg,#ff004c,#8b0000); box-shadow: 0 0 35px #ff0000, inset 0 0 10px rgba(255,255,255,0.3); transform: scale(1.08); }
-    100% { background: #35322e; transform: scale(1); }
+    0%   { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
+    30%  { box-shadow: 0 0 22px rgba(255,0,60,1), 0 0 45px rgba(255,0,60,0.7), 0 0 70px rgba(255,0,60,0.3), inset 0 0 12px rgba(255,0,60,0.25); border-color: #ff003c; transform: scale(1.06); }
+    60%  { box-shadow: 0 0 14px rgba(255,0,60,0.7), 0 0 28px rgba(255,0,60,0.4); border-color: rgba(255,0,60,0.9); transform: scale(0.98); }
+    100% { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
 }
-.martin-time-15 { animation: martin-yellow-glow 1.5s ease-in-out infinite; border-radius: 6px; border: 1px solid rgba(255,159,0,0.3); }
-.martin-time-10 { animation: martin-red-glow 0.8s ease-in-out infinite; border-radius: 6px; border: 1px solid rgba(255,0,0,0.5); }
-.martin-time-5  { animation: martin-critical-glow 0.4s cubic-bezier(0.4,0,0.6,1) infinite; border-radius: 6px; z-index: 10; border: 1px solid #ff0000; }
 
-
-.martin-led-canvas.martin-time-15 { animation: martin-yellow-glow 1.5s ease-in-out infinite; ... }
-.martin-led-canvas.martin-time-10 { animation: martin-red-glow 0.8s ease-in-out infinite; ... }
-.martin-led-canvas.martin-time-5  { animation: martin-critical-glow 0.4s ... infinite; ... }
-
+.martin-time-15,
+.martin-digital-clock .clock-component.martin-time-15 {
+    animation: martin-yellow-glow 1.4s ease-in-out infinite !important;
+    border: 2px solid rgba(0,150,255,0.7) !important;
+    border-radius: 6px !important;
+}
+.martin-time-10,
+.martin-digital-clock .clock-component.martin-time-10 {
+    animation: martin-red-glow 0.9s ease-in-out infinite !important;
+    border: 2px solid rgba(140,0,255,0.8) !important;
+    border-radius: 6px !important;
+}
+.martin-time-5,
+.martin-digital-clock .clock-component.martin-time-5 {
+    animation: martin-critical-glow 0.45s cubic-bezier(0.4,0,0.6,1) infinite !important;
+    border: 2px solid #ff003c !important;
+    border-radius: 6px !important;
+}
 `;
 document.head.appendChild(timeAlertStyle);
 document.head.appendChild(style);
@@ -76,19 +87,13 @@ function checkLowTime() {
         seconds = parseInt(timeText);
     }
 
-    // Target cả span lẫn canvas kế bên
-    const canvas = myClock.nextElementSibling?.classList.contains('martin-led-canvas')
-        ? myClock.nextElementSibling
-        : null;
-    const target = canvas || myClock;
-
-    target.classList.remove("martin-time-15", "martin-time-10", "martin-time-5");
-    myClock.classList.remove("martin-time-15", "martin-time-10", "martin-time-5"); // clean cả span
+    const clockComp = myClock.closest('[class*="clock-component"]') || myClock;
+    clockComp.classList.remove("martin-time-15", "martin-time-10", "martin-time-5");
 
     if (!currentSettings.lowTimeAlert) return;
-    if (seconds <= 5) target.classList.add("martin-time-5");
-    else if (seconds <= 10) target.classList.add("martin-time-10");
-    else if (seconds <= 15) target.classList.add("martin-time-15");
+    if (seconds <= 5) clockComp.classList.add("martin-time-5");
+    else if (seconds <= 10) clockComp.classList.add("martin-time-10");
+    else if (seconds <= 15) clockComp.classList.add("martin-time-15");
 }
 
 let lowTimeInterval = null;
@@ -102,8 +107,9 @@ function startLowTimeInterval() {
 }
 function stopLowTimeInterval() {
     if (lowTimeInterval) { clearInterval(lowTimeInterval); lowTimeInterval = null; }
-    const myClock = document.querySelector('[class*="clock-bottom"] .clock-time-monospace');
-    if (myClock) myClock.classList.remove("martin-time-15", "martin-time-10", "martin-time-5");
+    document.querySelectorAll('[class*="clock-component"]').forEach(el =>
+        el.classList.remove("martin-time-15", "martin-time-10", "martin-time-5")
+    );
 }
 
 // ===== DIGITAL CLOCK — 7-SEGMENT LED =====
