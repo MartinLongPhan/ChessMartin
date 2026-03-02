@@ -15,7 +15,7 @@ style.textContent = `
 .martin-hide-opponent 
 [class*="player"]:not([class*="bottom"]) 
 .player-tagline::after {
-    content: "Anonymous Opponent";
+    content: "No name";
     position: absolute;
     inset: 0;
     display: flex;
