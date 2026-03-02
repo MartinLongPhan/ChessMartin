@@ -51,23 +51,33 @@ timeAlertStyle.textContent = `
     100% { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
 }
 
-.martin-time-15,
+/* Cấp độ 15 giây: Viền xanh dương Neon (như ý bạn) nhưng rực rỡ hơn */
 .martin-digital-clock .clock-component.martin-time-15 {
     animation: martin-yellow-glow 1.4s ease-in-out infinite !important;
-    border: 2px solid rgba(0,150,255,0.7) !important;
-    border-radius: 6px !important;
+    border: 3px solid rgba(0, 150, 255, 1) !important; /* Xanh dương thuần */
+    box-shadow: 0 0 15px rgba(0, 150, 255, 0.6), 
+                inset 0 0 10px rgba(0, 150, 255, 0.3) !important;
+    border-radius: 8px !important;
 }
-.martin-time-10,
+
+/* Cấp độ 10 giây: Viền tím Neon huyền bí */
 .martin-digital-clock .clock-component.martin-time-10 {
-    animation: martin-red-glow 0.9s ease-in-out infinite !important;
-    border: 2px solid rgba(140,0,255,0.8) !important;
-    border-radius: 6px !important;
+    animation: martin-red-glow 0.8s ease-in-out infinite !important;
+    border: 3px solid rgba(140, 0, 255, 1) !important; /* Tím đậm rực rỡ */
+    box-shadow: 0 0 20px rgba(140, 0, 255, 0.7), 
+                inset 0 0 12px rgba(140, 0, 255, 0.4) !important;
+    border-radius: 8px !important;
 }
-.martin-time-5,
+
+/* Cấp độ 5 giây: Viền Đỏ Cực Hạn - Nhấp nháy mạnh */
 .martin-digital-clock .clock-component.martin-time-5 {
-    animation: martin-critical-glow 0.45s cubic-bezier(0.4,0,0.6,1) infinite !important;
-    border: 2px solid #ff003c !important;
-    border-radius: 6px !important;
+    animation: martin-critical-glow 0.4s cubic-bezier(0.4,0,0.6,1) infinite !important;
+    border: 4px solid #ff003c !important; /* Đỏ hồng rực */
+    box-shadow: 0 0 25px #ff003c, 
+                0 0 45px rgba(255, 0, 60, 0.5),
+                inset 0 0 15px rgba(255, 0, 60, 0.5) !important;
+    border-radius: 8px !important;
+    z-index: 100;
 }
 `;
 document.head.appendChild(timeAlertStyle);
