@@ -4,17 +4,17 @@ style.textContent = `
 
 /* Ẩn toàn bộ player-top, sau đó show lại những gì cần giữ */
 .martin-hide-opponent #board-layout-player-top > * {
-    visibility: hidden !important;
+visibility: hidden !important;
 }
 
 /* Giữ lại đồng hồ */
 .martin-hide-opponent #board-layout-player-top [class*="clock"],
 .martin-hide-opponent #board-layout-player-top [class*="Clock"] {
-    visibility: visible !important;
+visibility: visible !important;
 }
 .martin-hide-opponent #board-layout-player-top [class*="clock"] *,
 .martin-hide-opponent #board-layout-player-top [class*="Clock"] * {
-    visibility: visible !important;
+visibility: visible !important;
 }
 
 /* Giữ lại captured pieces */
@@ -22,78 +22,78 @@ style.textContent = `
 .martin-hide-opponent #board-layout-player-top [class*="material"],
 .martin-hide-opponent #board-layout-player-top [class*="Captured"],
 .martin-hide-opponent #board-layout-player-top [class*="Material"] {
-    visibility: visible !important;
+visibility: visible !important;
 }
 .martin-hide-opponent #board-layout-player-top [class*="captured"] *,
 .martin-hide-opponent #board-layout-player-top [class*="material"] *,
 .martin-hide-opponent #board-layout-player-top [class*="Captured"] *,
 .martin-hide-opponent #board-layout-player-top [class*="Material"] * {
-    visibility: visible !important;
+visibility: visible !important;
 }
 `;
 
 const timeAlertStyle = document.createElement("style");
 timeAlertStyle.textContent = `
 @keyframes martin-yellow-glow {
-    0%   { box-shadow: 0 0 6px rgba(0,150,255,0.4), 0 0 12px rgba(0,150,255,0.2); border-color: rgba(0,150,255,0.7); }
-    50%  { box-shadow: 0 0 14px rgba(0,180,255,0.9), 0 0 28px rgba(0,150,255,0.5), inset 0 0 8px rgba(0,150,255,0.15); border-color: rgba(0,180,255,1); }
-    100% { box-shadow: 0 0 6px rgba(0,150,255,0.4), 0 0 12px rgba(0,150,255,0.2); border-color: rgba(0,150,255,0.7); }
+0%   { box-shadow: 0 0 6px rgba(0,150,255,0.4), 0 0 12px rgba(0,150,255,0.2); border-color: rgba(0,150,255,0.7); }
+50%  { box-shadow: 0 0 14px rgba(0,180,255,0.9), 0 0 28px rgba(0,150,255,0.5), inset 0 0 8px rgba(0,150,255,0.15); border-color: rgba(0,180,255,1); }
+100% { box-shadow: 0 0 6px rgba(0,150,255,0.4), 0 0 12px rgba(0,150,255,0.2); border-color: rgba(0,150,255,0.7); }
 }
 @keyframes martin-red-glow {
-    0%   { box-shadow: 0 0 8px rgba(140,0,255,0.5), 0 0 18px rgba(140,0,255,0.25); border-color: rgba(140,0,255,0.8); }
-    50%  { box-shadow: 0 0 18px rgba(180,0,255,1), 0 0 36px rgba(140,0,255,0.6), inset 0 0 10px rgba(160,0,255,0.2); border-color: rgba(180,0,255,1); }
-    100% { box-shadow: 0 0 8px rgba(140,0,255,0.5), 0 0 18px rgba(140,0,255,0.25); border-color: rgba(140,0,255,0.8); }
+0%   { box-shadow: 0 0 8px rgba(140,0,255,0.5), 0 0 18px rgba(140,0,255,0.25); border-color: rgba(140,0,255,0.8); }
+50%  { box-shadow: 0 0 18px rgba(180,0,255,1), 0 0 36px rgba(140,0,255,0.6), inset 0 0 10px rgba(160,0,255,0.2); border-color: rgba(180,0,255,1); }
+100% { box-shadow: 0 0 8px rgba(140,0,255,0.5), 0 0 18px rgba(140,0,255,0.25); border-color: rgba(140,0,255,0.8); }
 }
 @keyframes martin-critical-glow {
-    0%   { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
-    30%  { box-shadow: 0 0 22px rgba(255,0,60,1), 0 0 45px rgba(255,0,60,0.7), 0 0 70px rgba(255,0,60,0.3), inset 0 0 12px rgba(255,0,60,0.25); border-color: #ff003c; transform: scale(1.06); }
-    60%  { box-shadow: 0 0 14px rgba(255,0,60,0.7), 0 0 28px rgba(255,0,60,0.4); border-color: rgba(255,0,60,0.9); transform: scale(0.98); }
-    100% { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
+0%   { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
+30%  { box-shadow: 0 0 22px rgba(255,0,60,1), 0 0 45px rgba(255,0,60,0.7), 0 0 70px rgba(255,0,60,0.3), inset 0 0 12px rgba(255,0,60,0.25); border-color: #ff003c; transform: scale(1.06); }
+60%  { box-shadow: 0 0 14px rgba(255,0,60,0.7), 0 0 28px rgba(255,0,60,0.4); border-color: rgba(255,0,60,0.9); transform: scale(0.98); }
+100% { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
 }
 
 /* đảm bảo clock có position */
 .clock-component {
-    position: relative !important;
+position: relative !important;
 }
 
 /* base cho vạch accent */
 .clock-component.martin-time-15::before,
 .clock-component.martin-time-10::before,
 .clock-component.martin-time-5::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 8%;
-    height: 84%;
-    width: 4px;
-    border-radius: 4px;
-    pointer-events: none;
+content: "";
+position: absolute;
+left: 0;
+top: 8%;
+height: 84%;
+width: 4px;
+border-radius: 4px;
+pointer-events: none;
 }
 
 /* 15 giây – xanh hiện đại */
 .clock-component.martin-time-15::before {
-    background: #3b82f6;
+background: #3b82f6;
 }
 
 /* 10 giây – vàng hổ phách */
 .clock-component.martin-time-10::before {
-    background: #f59e0b;
+background: #f59e0b;
 }
 
 /* 5 giây – đỏ trầm */
 .clock-component.martin-time-5::before {
-    background: #ef4444;
+background: #ef4444;
 }
 
 /* chỉ khi cực nguy hiểm mới đậm chữ */
 .clock-component.martin-time-5 {
-    font-weight: 600 !important;
+font-weight: 600 !important;
 }
 
 .clock-component.martin-time-15,
 .clock-component.martin-time-10,
 .clock-component.martin-time-5 {
-    overflow: visible !important;
+overflow: visible !important;
 }
 `;
 document.head.appendChild(timeAlertStyle);
@@ -379,35 +379,35 @@ const cleanStyle = document.createElement("style");
 cleanStyle.textContent = `
 /* Larger Clock */
 .martin-larger-clock .clock-time-monospace {
-    font-size: 28px !important;
-    font-weight: bold !important;
-    line-height: 1 !important;
+font-size: 28px !important;
+font-weight: bold !important;
+line-height: 1 !important;
 }
 .martin-larger-clock .clock-component {
-    padding: 4px 10px !important;
-    min-width: unset !important;
-    width: auto !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 8px !important;
-    overflow: visible !important;
+padding: 4px 10px !important;
+min-width: unset !important;
+width: auto !important;
+display: inline-flex !important;
+align-items: center !important;
+justify-content: center !important;
+border-radius: 8px !important;
+overflow: visible !important;
 }
 /* Khi cả 2 tính năng cùng bật — digital clock override larger clock */
 .martin-digital-clock .clock-time-monospace {
-    font-size: 0 !important;
+font-size: 0 !important;
 }
 
 .martin-larger-clock .clock-icon-icon {
-    flex-shrink: 0 !important;
-    width: 16px !important;
-    height: 16px !important;
-    margin-right: 2px !important;
+flex-shrink: 0 !important;
+width: 16px !important;
+height: 16px !important;
+margin-right: 2px !important;
 }
 
 .martin-larger-clock .clock-time-monospace {
-    flex-shrink: 0 !important;
-    white-space: nowrap !important;
+flex-shrink: 0 !important;
+white-space: nowrap !important;
 }
 
 .martin-hide-logo .header-logo { display: none !important; }
@@ -423,46 +423,46 @@ cleanStyle.textContent = `
 .martin-hide-game-messages .resizable-chat-area-component { display: none !important; }
 
 .martin-digital-clock .clock-time-monospace {
-    font-size: 0 !important; line-height: 0 !important; color: transparent !important;
+font-size: 0 !important; line-height: 0 !important; color: transparent !important;
 }
 .martin-digital-clock .clock-icon-icon { display: none !important; }
 .martin-digital-clock .clock-component {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 3px 6px !important;
-    width: auto !important;
-    min-width: unset !important;
-    max-height: 44px !important;
-    /* Thay đổi tại đây: */
-    background: #f0f0f0 !important; /* Nền xám trắng nhẹ */
-    border: 2px solid #333333 !important; /* Viền đen/xám đậm */
-    border-radius: 6px !important;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.05) !important;
-    overflow: hidden !important;
+display: inline-flex !important;
+align-items: center !important;
+justify-content: center !important;
+padding: 3px 6px !important;
+width: auto !important;
+min-width: unset !important;
+max-height: 44px !important;
+/* Thay đổi tại đây: */
+background: #f0f0f0 !important; /* Nền xám trắng nhẹ */
+border: 2px solid #333333 !important; /* Viền đen/xám đậm */
+border-radius: 6px !important;
+box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.05) !important;
+overflow: hidden !important;
 }
 .martin-digital-clock .martin-led-canvas {
-    flex-shrink: 0;
-    display: block !important;
-    background: transparent !important;
+flex-shrink: 0;
+display: block !important;
+background: transparent !important;
 }
 
 /* Legal Moves Pro */
 #martin-overlay .martin-move {
-    transition: opacity 0.15s ease, transform 0.1s ease;
+transition: opacity 0.15s ease, transform 0.1s ease;
 }
 #martin-overlay.dragging .martin-move {
-    opacity: 0.55;
-    transform: scale(0.95);
+opacity: 0.55;
+transform: scale(0.95);
 }
 #martin-overlay .martin-origin {
-    position: fixed;
-    pointer-events: none;
-    background: rgba(255, 0, 0, 0.15); /* Màu nền đỏ rất nhạt để không che mất ô cờ */
-    border: 2px solid rgba(255, 0, 0, 0.8); /* Viền đỏ rõ nét */
-    box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); /* Hiệu ứng phát sáng đỏ lan tỏa */
-    border-radius: 4px;
-    transition: opacity 0.15s ease;
+position: fixed;
+pointer-events: none;
+background: rgba(255, 0, 0, 0.15); /* Màu nền đỏ rất nhạt để không che mất ô cờ */
+border: 2px solid rgba(255, 0, 0, 0.8); /* Viền đỏ rõ nét */
+box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); /* Hiệu ứng phát sáng đỏ lan tỏa */
+border-radius: 4px;
+transition: opacity 0.15s ease;
 }
 
 /*  */
@@ -473,14 +473,14 @@ cleanStyle.textContent = `
 .martin-legal-active wc-chess-board [data-test-element="move-destination"],
 .martin-legal-active wc-chess-board .piece-square-targets,
 .martin-legal-active wc-chess-board [class*="hint"] {
-    display: none !important;
-    opacity: 0 !important;
-    visibility: hidden !important;
+display: none !important;
+opacity: 0 !important;
+visibility: hidden !important;
 }
 /* Ẩn viền trắng hover/click gốc của chess.com */
 .martin-legal-active wc-chess-board .hover-square {
-    visibility: hidden !important;
-    display: none !important;
+visibility: hidden !important;
+display: none !important;
 }
 `;
 document.head.appendChild(cleanStyle);
@@ -599,10 +599,13 @@ document.head.appendChild(cleanStyle);
     function renderDots(moves, captureSet, flipped) {
         const ov = ensureOverlay();
         if (!ov) return;
-        ov.innerHTML = ''; // clear trực tiếp, không gọi clearOverlay() để giữ selectedSq
+        ov.innerHTML = '';
 
         const rect = getBoardRect();
-        if (!rect || rect.width === 0) { log('ERROR: board rect zero'); return; }
+        if (!rect || rect.width === 0) {
+            log('ERROR: board rect zero');
+            return;
+        }
 
         // Highlight ô xuất phát
         if (selectedSq) {
@@ -616,55 +619,68 @@ document.head.appendChild(cleanStyle);
             ov.appendChild(origin);
         }
 
-        // Tìm đến đoạn này trong hàm renderDots của bạn và thay thế:
         moves.forEach(sq => {
             const { x, y, cell } = sqToPixel(sq, rect, flipped);
             const isCap = captureSet.has(sq);
             const el = document.createElement('div');
             el.className = 'martin-move';
 
-            // Cấu hình khung ⛶
-            const borderSize = Math.max(2, cell * 0.06);
-            const cornerLen = '28%'; // Tăng lên một chút cho rõ góc
-            const redColor = 'rgba(255, 0, 0, 1)'; // Đỏ thuần cực đậm
+            if (isCap) {
+                const armLength = cell * 0.26;
+                const thickness = Math.max(4, cell * 0.08);
+                const gap = cell * 0.18;
 
-            el.style.cssText = `
+                el.style.cssText = `
         position: fixed;
-        left: ${x + cell * 0.5 - (isCap ? cell * 0.45 : cell * 0.09)}px;
-        top:  ${y + cell * 0.5 - (isCap ? cell * 0.45 : cell * 0.09)}px;
-        width:  ${isCap ? cell * 0.9 : cell * 0.18}px;
-        height: ${isCap ? cell * 0.9 : cell * 0.18}px;
-        
-        background: ${isCap
-                    ? `linear-gradient(to right, ${redColor} ${borderSize}px, transparent ${borderSize}px) 0 0,
-               linear-gradient(to right, ${redColor} ${borderSize}px, transparent ${borderSize}px) 0 100%,
-               linear-gradient(to left, ${redColor} ${borderSize}px, transparent ${borderSize}px) 100% 0,
-               linear-gradient(to left, ${redColor} ${borderSize}px, transparent ${borderSize}px) 100% 100%,
-               linear-gradient(to bottom, ${redColor} ${borderSize}px, transparent ${borderSize}px) 0 0,
-               linear-gradient(to bottom, ${redColor} ${borderSize}px, transparent ${borderSize}px) 100% 0,
-               linear-gradient(to top, ${redColor} ${borderSize}px, transparent ${borderSize}px) 0 100%,
-               linear-gradient(to top, ${redColor} ${borderSize}px, transparent ${borderSize}px) 100% 100%`
-                    : redColor};
-        
-        background-repeat: no-repeat !important;
-        background-size: ${isCap ? `${cornerLen} ${cornerLen}` : '100% 100%'} !important;
-        
-        border: none !important; 
-        border-radius: ${isCap ? '2px' : '50%'};
-        
-        box-shadow: ${isCap
-                    ? `0 0 ${cell * 0.1}px rgba(255, 0, 0, 0.6)`
-                    : `0 0 ${cell * 0.06}px rgba(255, 0, 0, 0.5)`};
-        
-        box-sizing: border-box;
+        left: ${x}px;
+        top: ${y}px;
+        width: ${cell}px;
+        height: ${cell}px;
         pointer-events: none;
         z-index: 9999;
+
+        background:
+            linear-gradient(#ff2a2a, #ff2a2a),
+            linear-gradient(#ff2a2a, #ff2a2a),
+            linear-gradient(#ff2a2a, #ff2a2a),
+            linear-gradient(#ff2a2a, #ff2a2a);
+
+        background-size:
+            ${thickness}px ${armLength}px,
+            ${thickness}px ${armLength}px,
+            ${armLength}px ${thickness}px,
+            ${armLength}px ${thickness}px;
+
+        background-position:
+            center ${gap}px,
+            center calc(100% - ${gap}px),
+            ${gap}px center,
+            calc(100% - ${gap}px) center;
+
+        background-repeat: no-repeat;
     `;
+            } else {
+                // 🔹 MOVE THƯỜNG (minimal gaming dot)
+                const size = cell * 0.22;
+
+                el.style.cssText = `
+            position: fixed;
+            left: ${x + cell / 2 - size / 2}px;
+            top: ${y + cell / 2 - size / 2}px;
+            width: ${size}px;
+            height: ${size}px;
+            border-radius: 50%;
+            background: rgba(211,176,20,0.75);
+            pointer-events: none;
+            z-index: 9999;
+        `;
+            }
+
             ov.appendChild(el);
         });
+
         log('Rendered', moves.length, 'moves, captures:', captureSet.size);
     }
-
     // ===== SHOW MOVES =====
     function showMovesForSq(sq) {
         const fenRaw = getFen();
