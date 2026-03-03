@@ -51,31 +51,43 @@ timeAlertStyle.textContent = `
     100% { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
 }
 
-/* 15 giây – Calm Blue */
-.clock-component.martin-time-15 {
-    background-color: #E8F1FB !important;
-    color: #1E3A8A !important;
-    border: 1px solid #C7DBF7 !important;
-    border-radius: 6px !important;
-    transition: background-color 0.2s ease, color 0.2s ease;
+/* đảm bảo clock có position */
+.clock-component {
+    position: relative !important;
 }
 
-/* 10 giây – Warning Amber */
-.clock-component.martin-time-10 {
-    background-color: #FFF4D6 !important;
-    color: #92400E !important;
-    border: 1px solid #FCD34D !important;
-    border-radius: 6px !important;
-    transition: background-color 0.2s ease, color 0.2s ease;
+/* base cho vạch accent */
+.clock-component.martin-time-15::before,
+.clock-component.martin-time-10::before,
+.clock-component.martin-time-5::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8%;
+    height: 84%;
+    width: 4px;
+    border-radius: 4px;
+    pointer-events: none;
 }
 
-/* 5 giây – Critical Red */
+/* 15 giây – xanh hiện đại */
+.clock-component.martin-time-15::before {
+    background: #3b82f6;
+}
+
+/* 10 giây – vàng hổ phách */
+.clock-component.martin-time-10::before {
+    background: #f59e0b;
+}
+
+/* 5 giây – đỏ trầm */
+.clock-component.martin-time-5::before {
+    background: #ef4444;
+}
+
+/* chỉ khi cực nguy hiểm mới đậm chữ */
 .clock-component.martin-time-5 {
-    background-color: #FEE2E2 !important;
-    color: #7F1D1D !important;
-    border: 1px solid #FCA5A5 !important;
-    border-radius: 6px !important;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    font-weight: 600 !important;
 }
 
 .clock-component.martin-time-15,
@@ -83,8 +95,6 @@ timeAlertStyle.textContent = `
 .clock-component.martin-time-5 {
     overflow: visible !important;
 }
-
-
 `;
 document.head.appendChild(timeAlertStyle);
 document.head.appendChild(style);
