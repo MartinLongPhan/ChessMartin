@@ -51,34 +51,40 @@ timeAlertStyle.textContent = `
     100% { box-shadow: 0 0 10px rgba(255,0,60,0.5), 0 0 22px rgba(255,0,60,0.25); border-color: rgba(255,0,60,0.8); transform: scale(1); }
 }
 
-/* Cấp độ 15 giây: Viền xanh dương Neon (như ý bạn) nhưng rực rỡ hơn */
-.martin-digital-clock .clock-component.martin-time-15 {
-    animation: martin-yellow-glow 1.4s ease-in-out infinite !important;
-    border: 3px solid rgba(0, 150, 255, 1) !important; /* Xanh dương thuần */
-    box-shadow: 0 0 15px rgba(0, 150, 255, 0.6), 
-                inset 0 0 10px rgba(0, 150, 255, 0.3) !important;
-    border-radius: 8px !important;
+/* 15 giây – Calm Blue */
+.clock-component.martin-time-15 {
+    background-color: #E8F1FB !important;
+    color: #1E3A8A !important;
+    border: 1px solid #C7DBF7 !important;
+    border-radius: 6px !important;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Cấp độ 10 giây: Viền tím Neon huyền bí */
-.martin-digital-clock .clock-component.martin-time-10 {
-    animation: martin-red-glow 0.8s ease-in-out infinite !important;
-    border: 3px solid rgba(140, 0, 255, 1) !important; /* Tím đậm rực rỡ */
-    box-shadow: 0 0 20px rgba(140, 0, 255, 0.7), 
-                inset 0 0 12px rgba(140, 0, 255, 0.4) !important;
-    border-radius: 8px !important;
+/* 10 giây – Warning Amber */
+.clock-component.martin-time-10 {
+    background-color: #FFF4D6 !important;
+    color: #92400E !important;
+    border: 1px solid #FCD34D !important;
+    border-radius: 6px !important;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Cấp độ 5 giây: Viền Đỏ Cực Hạn - Nhấp nháy mạnh */
-.martin-digital-clock .clock-component.martin-time-5 {
-    animation: martin-critical-glow 0.4s cubic-bezier(0.4,0,0.6,1) infinite !important;
-    border: 4px solid #ff003c !important; /* Đỏ hồng rực */
-    box-shadow: 0 0 25px #ff003c, 
-                0 0 45px rgba(255, 0, 60, 0.5),
-                inset 0 0 15px rgba(255, 0, 60, 0.5) !important;
-    border-radius: 8px !important;
-    z-index: 100;
+/* 5 giây – Critical Red */
+.clock-component.martin-time-5 {
+    background-color: #FEE2E2 !important;
+    color: #7F1D1D !important;
+    border: 1px solid #FCA5A5 !important;
+    border-radius: 6px !important;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
+
+.clock-component.martin-time-15,
+.clock-component.martin-time-10,
+.clock-component.martin-time-5 {
+    overflow: visible !important;
+}
+
+
 `;
 document.head.appendChild(timeAlertStyle);
 document.head.appendChild(style);
@@ -245,10 +251,7 @@ console.log("MartinChessVN loaded");
 
 // ===== APPLY SETTINGS =====
 function applySettings(settings) {
-    document.querySelectorAll(".clock-time-monospace").forEach(clock => {
-        clock.style.fontSize = settings.largerClock ? "40px" : "";
-        clock.style.fontWeight = settings.largerClock ? "bold" : "";
-    });
+    document.body.classList.toggle("martin-larger-clock", !!settings.largerClock);
     toggleOpponentVisibility(settings.hideOpponent);
     document.body.classList.toggle("martin-clean", !!settings.cleanUI);
     document.body.classList.toggle("martin-hide-logo", !!(settings.cleanUI && settings.hideLogo));
@@ -364,6 +367,39 @@ observer.observe(document.body, { childList: true, subtree: true, attributes: tr
 // ===== STYLES =====
 const cleanStyle = document.createElement("style");
 cleanStyle.textContent = `
+/* Larger Clock */
+.martin-larger-clock .clock-time-monospace {
+    font-size: 28px !important;
+    font-weight: bold !important;
+    line-height: 1 !important;
+}
+.martin-larger-clock .clock-component {
+    padding: 4px 10px !important;
+    min-width: unset !important;
+    width: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    overflow: visible !important;
+}
+/* Khi cả 2 tính năng cùng bật — digital clock override larger clock */
+.martin-digital-clock .clock-time-monospace {
+    font-size: 0 !important;
+}
+
+.martin-larger-clock .clock-icon-icon {
+    flex-shrink: 0 !important;
+    width: 16px !important;
+    height: 16px !important;
+    margin-right: 2px !important;
+}
+
+.martin-larger-clock .clock-time-monospace {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+}
+
 .martin-hide-logo .header-logo { display: none !important; }
 .martin-hide-ads .advertisement,
 .martin-hide-ads [class*="ad-"] { display: none !important; }
