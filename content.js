@@ -618,6 +618,25 @@ visibility: hidden !important;
 visibility: hidden !important;
 display: none !important;
 }
+
+
+
+.martin-lichess-btn {
+    transition: all 0.2s ease-in-out !important;
+}
+
+.martin-lichess-btn:hover {
+    background-color: #36332e !important; /* Sáng lên một chút khi hover */
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    transform: translateY(-1px);
+}
+
+.martin-lichess-btn:active {
+    transform: translateY(0px);
+}
+
+
 `;
 document.head.appendChild(cleanStyle);
 
@@ -641,17 +660,66 @@ document.head.appendChild(cleanStyle);
 
     // ===== ĐỌC FEN =====
     function getFen() {
-        const board = document.querySelector('wc-chess-board');
-        if (board) {
-            const fen = board.getAttribute('fen');
-            if (fen) return fen;
-            try {
-                const game = board.game || board._game;
-                if (game) return game.getFEN?.() || game.fen?.() || null;
-            } catch (e) { }
+        try {
+            // Cách 1: Thử lấy từ URL (Chess.com đôi khi cập nhật FEN vào URL khi kết thúc)
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('fen')) return urlParams.get('fen');
+    
+            // Cách 2: Tự quét bàn cờ (DOM Scanner) - Cách này cực kỳ ổn định
+            const board = Array(8).fill(null).map(() => Array(8).fill(null));
+            const pieceMap = {
+                'pawn': 'p', 'knight': 'n', 'bishop': 'b', 'rook': 'r', 'queen': 'q', 'king': 'k',
+                'white': (s) => s.toUpperCase(),
+                'black': (s) => s.toLowerCase()
+            };
+    
+            // Tìm tất cả các quân cờ đang hiển thị
+            const pieces = document.querySelectorAll('.piece');
+            if (pieces.length === 0) return null;
+    
+            pieces.forEach(p => {
+                const classes = p.className.split(' ');
+                const typeClass = classes.find(c => c.length === 2 && !c.includes('-')); // ví dụ: 'wn', 'bp'
+                const posClass = classes.find(c => c.startsWith('square-')); // ví dụ: 'square-52'
+    
+                if (typeClass && posClass) {
+                    const color = typeClass[0] === 'w' ? 'white' : 'black';
+                    const type = typeClass[1]; // p, n, b, r, q, k
+                    const col = parseInt(posClass[7]) - 1;
+                    const row = 8 - parseInt(posClass[8]);
+                    
+                    let pieceChar = type;
+                    if (color === 'white') pieceChar = pieceChar.toUpperCase();
+                    board[row][col] = pieceChar;
+                }
+            });
+    
+            // Chuyển mảng thành chuỗi FEN chuẩn
+            let fenRows = [];
+            for (let r = 0; r < 8; r++) {
+                let empty = 0, rowStr = "";
+                for (let c = 0; c < 8; c++) {
+                    if (board[r][c] === null) {
+                        empty++;
+                    } else {
+                        if (empty > 0) { rowStr += empty; empty = 0; }
+                        rowStr += board[r][c];
+                    }
+                }
+                if (empty > 0) rowStr += empty;
+                fenRows.push(rowStr);
+            }
+    
+            // Thêm các thông số phụ (giả định lượt đi và nhập thành để Lichess vẫn nhận diện được thế cờ)
+            return fenRows.join('/') + " w KQkq - 0 1"; 
+        } catch (e) {
+            console.error("Lỗi khi quét FEN:", e);
+            return null;
         }
-        return buildFenFromDOM();
     }
+
+    // Expose global helper để chỗ khác (nút Lichess) có thể dùng lại
+    window.martinGetFen = getFen;
 
     function buildFenFromDOM() {
         const MAP = {
@@ -921,3 +989,63 @@ document.head.appendChild(cleanStyle);
     else init();
 
 })();
+
+
+// 1. Hàm tạo và chèn nút Lichess
+function injectLichessButton() {
+    const buttonContainer = document.querySelector('.game-over-modal-buttons');
+    
+    if (buttonContainer && !document.querySelector('.martin-lichess-btn')) {
+        const btn = document.createElement('button');
+        btn.className = 'cc-button-component cc-button-secondary cc-button-xx-large cc-bg-secondary martin-lichess-btn';
+        
+        // --- Giữ nguyên phần Style của bạn ---
+        btn.style.cssText = `
+            margin-top: 10px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background-color: #262421 !important;
+            color: #bababa !important;
+            border: 1px solid #403d39 !important;
+            font-weight: bold;
+            cursor: pointer;
+        `;
+        
+        btn.innerHTML = `<span>🧬 Phân tích trên Lichess (Stockfish 16)</span>`;
+
+        // --- THAY ĐOẠN ADD EVENT LISTENER VÀO ĐÂY ---
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Chặn Chess.com can thiệp
+            
+            // Gọi hàm martinGetFen được expose global từ Legal Moves
+            const fen = (typeof window.martinGetFen === 'function') ? window.martinGetFen() : null;
+            console.log("DEBUG - FEN lấy được:", fen);
+
+            if (fen) {
+                const lichessUrl = `https://lichess.org/analysis/standard/${fen.replace(/\s+/g, '_')}`;
+                window.open(lichessUrl, '_blank');
+            } else {
+                console.error("Lỗi: Không lấy được FEN từ bàn cờ!");
+                alert("Lỗi: Không lấy được dữ liệu bàn cờ để phân tích.");
+            }
+        }, true); // 'true' để ưu tiên xử lý trước các sự kiện khác của web
+
+        buttonContainer.appendChild(btn);
+    }
+}
+
+// 2. Tích hợp vào Observer có sẵn của bạn
+// Giả sử bạn đang có một observer theo dõi bàn cờ, hãy thêm dòng này vào:
+const gameObserver = new MutationObserver((mutations) => {
+    // Các logic cũ (cập nhật đồng hồ LED, vv...)
+    updateAllClocks();
+    
+    // Tự động kiểm tra để chèn nút Lichess
+    injectLichessButton();
+});
+
+gameObserver.observe(document.body, { childList: true, subtree: true });
