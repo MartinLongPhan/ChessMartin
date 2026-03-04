@@ -101,7 +101,9 @@ document.head.appendChild(style);
 
 // ===== LOW TIME ALERT =====
 function checkLowTime() {
-    const myClock = document.querySelector('[class*="clock-bottom"] .clock-time-monospace');
+    // FIX #5: Dùng selector chuẩn hơn thay vì [class*="clock-bottom"]
+    const myClock = document.querySelector('[data-cy="clock-bottom"] .clock-time-monospace')
+        || document.querySelector('.clock-bottom .clock-time-monospace');
     if (!myClock) return;
 
     const timeText = myClock.innerText.trim();
@@ -123,10 +125,6 @@ function checkLowTime() {
 }
 
 let lowTimeInterval = null;
-// function startLowTimeInterval() {
-//     if (lowTimeInterval) return;
-//     lowTimeInterval = setInterval(checkLowTime, 500);
-// }
 function startLowTimeInterval() {
     if (lowTimeInterval) clearInterval(lowTimeInterval);
     lowTimeInterval = setInterval(checkLowTime, 500);
@@ -144,9 +142,7 @@ const SEGMENTS = {
     '3': [1, 1, 1, 1, 0, 0, 1], '4': [0, 1, 1, 0, 0, 1, 1], '5': [1, 0, 1, 1, 0, 1, 1],
     '6': [1, 0, 1, 1, 1, 1, 1], '7': [1, 1, 1, 0, 0, 0, 0], '8': [1, 1, 1, 1, 1, 1, 1], '9': [1, 1, 1, 1, 0, 1, 1],
 };
-// const LED_ON = '#cc1100';
-// const LED_OFF = 'rgba(180,20,0,0.10)';
-const LED_ON = '#000000'; // Màu đen cho các thanh đang sáng
+const LED_ON = '#000000';
 const LED_OFF = 'rgba(0, 0, 0, 0.05)';
 const S = 3;
 const DW = 16;
@@ -183,16 +179,8 @@ function drawDigit(ctx, char, x, y) {
     hSeg(g, y + DH / 2 - S / 2);
 }
 
-// function drawColon(ctx, x, y) {
-//     ctx.fillStyle = LED_ON;
-//     const r = S * 0.85;
-//     const cx = x + CW / 2;
-//     ctx.beginPath(); ctx.arc(cx, y + DH * 0.3, r, 0, Math.PI * 2); ctx.fill();
-//     ctx.beginPath(); ctx.arc(cx, y + DH * 0.7, r, 0, Math.PI * 2); ctx.fill();
-// }
-
 function drawColon(ctx, x, y) {
-    ctx.fillStyle = LED_ON; // Sẽ là màu #000000
+    ctx.fillStyle = LED_ON;
     const r = S * 0.85;
     const cx = x + CW / 2;
     ctx.beginPath(); ctx.arc(cx, y + DH * 0.3, r, 0, Math.PI * 2); ctx.fill();
@@ -237,7 +225,8 @@ function startDigitalClock() {
     if (digitalClockInterval) return;
     document.body.classList.add('martin-digital-clock');
     updateAllClocks();
-    digitalClockInterval = setInterval(updateAllClocks, 200);
+    // FIX #4: Giảm từ 200ms → 500ms để nhẹ CPU hơn (clock chess.com update theo giây)
+    digitalClockInterval = setInterval(updateAllClocks, 500);
 }
 function stopDigitalClock() {
     if (digitalClockInterval) { clearInterval(digitalClockInterval); digitalClockInterval = null; }
@@ -434,9 +423,8 @@ padding: 3px 6px !important;
 width: auto !important;
 min-width: unset !important;
 max-height: 44px !important;
-/* Thay đổi tại đây: */
-background: #f0f0f0 !important; /* Nền xám trắng nhẹ */
-border: 2px solid #333333 !important; /* Viền đen/xám đậm */
+background: #f0f0f0 !important;
+border: 2px solid #333333 !important;
 border-radius: 6px !important;
 box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.05) !important;
 overflow: hidden !important;
@@ -447,25 +435,45 @@ display: block !important;
 background: transparent !important;
 }
 
-/* Legal Moves Pro */
+/* ===== LEGAL MOVES PRO — Yellow & Red Design ===== */
 #martin-overlay .martin-move {
-transition: opacity 0.15s ease, transform 0.1s ease;
-}
-#martin-overlay.dragging .martin-move {
-opacity: 0.55;
-transform: scale(0.95);
-}
-#martin-overlay .martin-origin {
-position: fixed;
-pointer-events: none;
-background: rgba(255, 0, 0, 0.15); /* Màu nền đỏ rất nhạt để không che mất ô cờ */
-border: 2px solid rgba(255, 0, 0, 0.8); /* Viền đỏ rõ nét */
-box-shadow: 0 0 15px rgba(255, 0, 0, 0.6); /* Hiệu ứng phát sáng đỏ lan tỏa */
-border-radius: 4px;
-transition: opacity 0.15s ease;
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    transition: opacity 0.15s ease, transform 0.1s ease;
 }
 
-/*  */
+#martin-overlay.dragging .martin-move {
+    opacity: 0.55;
+    transform: scale(0.95);
+}
+
+#martin-overlay .martin-origin {
+    position: fixed;
+    pointer-events: none;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    transition: opacity 0.15s ease;
+}
+
+/* ===== Move thường — chấm tròn vàng ===== */
+#martin-overlay .martin-move.dot {
+    border-radius: 50%;
+    background: #D3B014;
+    opacity: 0.85;
+}
+
+/* ===== Capture — viền đỏ + glow, không tô nền ===== */
+#martin-overlay .martin-move.capture {
+    border-radius: 0;
+    background: transparent;
+    border: 2px solid #ff2a2a;
+    box-shadow: 0 0 12px rgba(255, 42, 42, 1);
+}
+
+/* Ẩn highlight gốc chess.com khi legal moves bật */
 .martin-legal-active wc-chess-board .selected-squares,
 .martin-legal-active wc-chess-board [class*="selected"],
 .martin-legal-active wc-chess-board .legal-moves-overlay,
@@ -477,7 +485,6 @@ display: none !important;
 opacity: 0 !important;
 visibility: hidden !important;
 }
-/* Ẩn viền trắng hover/click gốc của chess.com */
 .martin-legal-active wc-chess-board .hover-square {
 visibility: hidden !important;
 display: none !important;
@@ -499,7 +506,6 @@ document.head.appendChild(cleanStyle);
     window._martinSetLegalMoves = function (val) {
         enabled = !!val;
         log('legalMoves enabled:', enabled);
-        // Toggle class trên body để CSS override highlight gốc chess.com
         document.body.classList.toggle('martin-legal-active', enabled);
         if (!enabled) clearOverlay();
     };
@@ -607,7 +613,7 @@ document.head.appendChild(cleanStyle);
             return;
         }
 
-        // Highlight ô xuất phát
+        // 🟨 Highlight ô xuất phát
         if (selectedSq) {
             const { x, y, cell } = sqToPixel(selectedSq, rect, flipped);
             const origin = document.createElement('div');
@@ -626,54 +632,19 @@ document.head.appendChild(cleanStyle);
             el.className = 'martin-move';
 
             if (isCap) {
-                const armLength = cell * 0.26;
-                const thickness = Math.max(4, cell * 0.08);
-                const gap = cell * 0.18;
-
-                el.style.cssText = `
-        position: fixed;
-        left: ${x}px;
-        top: ${y}px;
-        width: ${cell}px;
-        height: ${cell}px;
-        pointer-events: none;
-        z-index: 9999;
-
-        background:
-            linear-gradient(#ff2a2a, #ff2a2a),
-            linear-gradient(#ff2a2a, #ff2a2a),
-            linear-gradient(#ff2a2a, #ff2a2a),
-            linear-gradient(#ff2a2a, #ff2a2a);
-
-        background-size:
-            ${thickness}px ${armLength}px,
-            ${thickness}px ${armLength}px,
-            ${armLength}px ${thickness}px,
-            ${armLength}px ${thickness}px;
-
-        background-position:
-            center ${gap}px,
-            center calc(100% - ${gap}px),
-            ${gap}px center,
-            calc(100% - ${gap}px) center;
-
-        background-repeat: no-repeat;
-    `;
+                el.classList.add('capture');
+                el.style.left = `${x}px`;
+                el.style.top = `${y}px`;
+                el.style.width = `${cell}px`;
+                el.style.height = `${cell}px`;
             } else {
-                // 🔹 MOVE THƯỜNG (minimal gaming dot)
+                // 🟡 MOVE THƯỜNG
                 const size = cell * 0.22;
-
-                el.style.cssText = `
-            position: fixed;
-            left: ${x + cell / 2 - size / 2}px;
-            top: ${y + cell / 2 - size / 2}px;
-            width: ${size}px;
-            height: ${size}px;
-            border-radius: 50%;
-            background: rgba(211,176,20,0.75);
-            pointer-events: none;
-            z-index: 9999;
-        `;
+                el.classList.add('dot');
+                el.style.left = `${x + cell / 2 - size / 2}px`;
+                el.style.top = `${y + cell / 2 - size / 2}px`;
+                el.style.width = `${size}px`;
+                el.style.height = `${size}px`;
             }
 
             ov.appendChild(el);
@@ -681,6 +652,7 @@ document.head.appendChild(cleanStyle);
 
         log('Rendered', moves.length, 'moves, captures:', captureSet.size);
     }
+
     // ===== SHOW MOVES =====
     function showMovesForSq(sq) {
         const fenRaw = getFen();
@@ -763,7 +735,6 @@ document.head.appendChild(cleanStyle);
         board.addEventListener('pointermove', (e) => {
             if (e.buttons > 0 && pointerDownSq) {
                 pointerMoved = true;
-                // Làm mờ dots khi đang drag
                 if (overlayEl) overlayEl.classList.add('dragging');
             }
         });
