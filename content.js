@@ -85,9 +85,15 @@ background: #f59e0b;
 background: #ef4444;
 }
 
-/* chỉ khi cực nguy hiểm mới đậm chữ */
-.clock-component.martin-time-5 {
-font-weight: 600 !important;
+.martin-time-5 {
+    animation: martin-panic-shake 0.2s infinite;
+}
+
+@keyframes martin-panic-shake {
+    0% { transform: translate(0,0); }
+    25% { transform: translate(1px, -1px); }
+    75% { transform: translate(-1px, 1px); }
+    100% { transform: translate(0,0); }
 }
 
 .clock-component.martin-time-15,
@@ -150,7 +156,15 @@ const DH = 26;
 const CW = 7;
 const GAP = 2;
 
+// Cấu hình màu sắc chuẩn Gaming
+const THEME = {
+    SAFE:   { color: '#39ff14', glow: '#20c20e', bg: 'rgba(57, 255, 20, 0.03)' }, // Xanh Neon
+    WARN:   { color: '#ff9900', glow: '#cc7a00', bg: 'rgba(255, 153, 0, 0.03)' }, // Vàng Amber
+    DANGER: { color: '#ff3131', glow: '#d00000', bg: 'rgba(255, 49, 49, 0.03)' }  // Đỏ rực
+};
+
 function drawDigit(ctx, char, x, y) {
+    // Hàm gốc vẫn giữ cho tương thích nếu có nơi khác dùng
     const segs = SEGMENTS[char];
     if (!segs) return;
     const [a, b, c, d, e, f, g] = segs;
@@ -187,28 +201,135 @@ function drawColon(ctx, x, y) {
     ctx.beginPath(); ctx.arc(cx, y + DH * 0.7, r, 0, Math.PI * 2); ctx.fill();
 }
 
-function renderTime(canvas, timeStr) {
+// function renderTime(canvas, timeStr) {
+//     const chars = timeStr.replace(/\s/g, '').split('');
+//     const PAD = 3;
+//     let totalW = 0;
+//     chars.forEach(c => { totalW += (c === ':' ? CW : DW) + GAP; });
+//     totalW = Math.max(totalW - GAP, 1);
+//     canvas.width = totalW + PAD * 2;
+//     canvas.height = DH + PAD * 2;
+//     const ctx = canvas.getContext('2d');
+//     ctx.clearRect(0, 0, canvas.width, canvas.height);
+//     let x = PAD;
+//     chars.forEach(c => {
+//         if (c === ':') { drawColon(ctx, x, PAD); x += CW + GAP; }
+//         else if (SEGMENTS[c]) { drawDigit(ctx, c, x, PAD); x += DW + GAP; }
+//     });
+// }
+
+function renderTime(canvas, timeStr, seconds) {
     const chars = timeStr.replace(/\s/g, '').split('');
-    const PAD = 3;
+    const PAD = 4;
+    
+    // Chọn Theme dựa trên số giây
+    let activeTheme = THEME.SAFE;
+    if (seconds <= 5) activeTheme = THEME.DANGER;
+    else if (seconds <= 15) activeTheme = THEME.WARN;
+
     let totalW = 0;
     chars.forEach(c => { totalW += (c === ':' ? CW : DW) + GAP; });
-    totalW = Math.max(totalW - GAP, 1);
-    canvas.width = totalW + PAD * 2;
-    canvas.height = DH + PAD * 2;
+
+    const logicalWidth = totalW - GAP + PAD * 2;
+    const logicalHeight = DH + PAD * 2;
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = logicalWidth * dpr;
+    canvas.height = logicalHeight * dpr;
+    canvas.style.width = logicalWidth + 'px';
+    canvas.style.height = logicalHeight + 'px';
+
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+
     let x = PAD;
     chars.forEach(c => {
-        if (c === ':') { drawColon(ctx, x, PAD); x += CW + GAP; }
-        else if (SEGMENTS[c]) { drawDigit(ctx, c, x, PAD); x += DW + GAP; }
+        if (c === ':') {
+            // Vẽ Colon (Dấu hai chấm) có Glow
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = activeTheme.glow;
+            ctx.fillStyle = activeTheme.color;
+            drawColon(ctx, x, PAD);
+            x += CW + GAP;
+        } else if (SEGMENTS[c]) {
+            // Vẽ từng Digit với hiệu ứng high-tech
+            drawDigitAdvanced(ctx, c, x, PAD, activeTheme);
+            x += DW + GAP;
+        }
     });
 }
+
+function drawDigitAdvanced(ctx, char, x, y, theme) {
+    const segs = SEGMENTS[char];
+    if (!segs) return;
+
+    // Helper vẽ Segment với hiệu ứng tắt/bật
+    const drawS = (on, type, xx, yy) => {
+        ctx.beginPath();
+        // Nếu ON thì bật Glow rực rỡ, nếu OFF thì vẽ mờ ảo phía sau
+        ctx.shadowBlur = on ? 12 : 0;
+        ctx.shadowColor = theme.glow;
+        ctx.fillStyle = on ? theme.color : theme.bg;
+
+        if (type === 'h') {
+            ctx.moveTo(xx + S, yy + S * 0.5); 
+            ctx.lineTo(xx + S * 1.5, yy);
+            ctx.lineTo(xx + DW - S * 1.5, yy); 
+            ctx.lineTo(xx + DW - S, yy + S * 0.5);
+            ctx.lineTo(xx + DW - S * 1.5, yy + S); 
+            ctx.lineTo(xx + S * 1.5, yy + S);
+        } else {
+            ctx.moveTo(xx + S * 0.5, yy + S); 
+            ctx.lineTo(xx + S, yy + S * 1.5);
+            ctx.lineTo(xx + S, yy + DH / 2 - S * 1.5); 
+            ctx.lineTo(xx + S * 0.5, yy + DH / 2 - S);
+            ctx.lineTo(xx, yy + DH / 2 - S * 1.5); 
+            ctx.lineTo(xx, yy + S * 1.5);
+        }
+        ctx.closePath();
+        ctx.fill();
+    };
+
+    // Vẽ đủ 7 thanh (thanh nào OFF vẫn vẽ bóng ma mờ phía sau)
+    drawS(segs[0], 'h', x, y);                         // a
+    drawS(segs[1], 'v', x + DW - S, y);                // b
+    drawS(segs[2], 'v', x + DW - S, y + DH / 2);       // c
+    drawS(segs[3], 'h', x, y + DH - S);                // d
+    drawS(segs[4], 'v', x, y + DH / 2);                // e
+    drawS(segs[5], 'v', x, y);                         // f
+    drawS(segs[6], 'h', x, y + DH / 2 - S / 2);        // g
+}
+
+// function updateAllClocks() {
+//     document.querySelectorAll('.clock-time-monospace').forEach(span => {
+//         let timeText = span.innerText.trim();
+//         if (!timeText) return;
+//         timeText = timeText.replace(/\.\d+$/, '');
+//         let canvas = span.nextElementSibling;
+//         if (!canvas || !canvas.classList.contains('martin-led-canvas')) {
+//             canvas = document.createElement('canvas');
+//             canvas.className = 'martin-led-canvas';
+//             canvas.style.cssText = `display: block; background: transparent;`;
+//             span.after(canvas);
+//         }
+//         renderTime(canvas, timeText);
+//     });
+// }
 
 function updateAllClocks() {
     document.querySelectorAll('.clock-time-monospace').forEach(span => {
         let timeText = span.innerText.trim();
         if (!timeText) return;
+
         timeText = timeText.replace(/\.\d+$/, '');
+
+        // Tính số giây theo format linh hoạt (h:m:s hoặc mm:ss hoặc ss)
+        const seconds = timeText.includes(":")
+            ? timeText.split(":").reduce((acc, t) => (60 * acc) + parseInt(t, 10), 0)
+            : parseInt(timeText, 10);
+
         let canvas = span.nextElementSibling;
         if (!canvas || !canvas.classList.contains('martin-led-canvas')) {
             canvas = document.createElement('canvas');
@@ -216,7 +337,9 @@ function updateAllClocks() {
             canvas.style.cssText = `display: block; background: transparent;`;
             span.after(canvas);
         }
-        renderTime(canvas, timeText);
+        
+        // Truyền thêm seconds vào đây
+        renderTime(canvas, timeText, seconds); 
     });
 }
 
@@ -419,15 +542,14 @@ font-size: 0 !important; line-height: 0 !important; color: transparent !importan
 display: inline-flex !important;
 align-items: center !important;
 justify-content: center !important;
-padding: 3px 6px !important;
-width: auto !important;
-min-width: unset !important;
-max-height: 44px !important;
-background: #f0f0f0 !important;
-border: 2px solid #333333 !important;
-border-radius: 6px !important;
-box-shadow: 0 2px 4px rgba(0,0,0,0.2), inset 0 0 5px rgba(0,0,0,0.05) !important;
-overflow: hidden !important;
+padding: 4px 14px !important;
+background: rgba(10, 10, 10, 0.85) !important; /* Nền đen sâu */
+backdrop-filter: blur(6px) !important; /* Hiệu ứng kính mờ */
+border: 1px solid rgba(255, 255, 255, 0.08) !important;
+border-radius: 8px !important;
+box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.4) !important;
+overflow: visible !important;
+transition: all 0.3s ease;
 }
 .martin-digital-clock .martin-led-canvas {
 flex-shrink: 0;
