@@ -436,6 +436,13 @@ background: transparent !important;
 }
 
 /* ===== LEGAL MOVES PRO — Yellow & Red Design ===== */
+
+.martin-move {
+    will-change: transform, opacity;
+    contain: strict;
+}
+
+
 #martin-overlay .martin-move {
     position: fixed;
     pointer-events: none;
