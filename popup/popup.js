@@ -27,16 +27,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ===== LOAD SETTINGS =====
     chrome.storage.sync.get([...storageKeys, "boardTheme", "pieceSet"], (data) => {
-        Object.keys(controls).forEach(id => {
-            const storageKey = controls[id];
-            if (elements[id]) {
-                elements[id].checked = data[storageKey] || false;
-            }
-        });
-    
-        boardTheme.value = data.boardTheme || "default";
-        pieceSet.value   = data.pieceSet   || "default";
+    Object.keys(controls).forEach(id => {
+        const storageKey = controls[id];
+        if (elements[id]) {
+            elements[id].checked = data[storageKey] || false;
+        }
     });
+
+    boardTheme.value = data.boardTheme || "default";
+    pieceSet.value   = data.pieceSet   || "default";
+});
 
     // ===== UPDATE SETTINGS =====
     function updateSettings() {
@@ -51,7 +51,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs[0]?.id) return;
-            chrome.tabs.sendMessage(tabs[0].id, { action: "updateSettings", ...settings });
+            
+            // Kiểm tra tab có phải chess.com không
+            const url = tabs[0].url || '';
+            if (!url.includes('chess.com')) return;
+        
+            chrome.tabs.sendMessage(tabs[0].id, { action: "updateSettings", ...settings }, (response) => {
+                // Bỏ qua lỗi nếu content script chưa sẵn sàng
+                if (chrome.runtime.lastError) return;
+            });
         });
     }
 
