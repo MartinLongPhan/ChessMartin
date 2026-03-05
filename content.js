@@ -382,7 +382,7 @@ btn.onclick = () => {
 document.body.appendChild(btn);
 
 let currentSettings = {};
-console.log("MartinChessVN loaded");
+
 
 // ===== APPLY SETTINGS =====
 function applySettings(settings) {
@@ -407,6 +407,9 @@ function applySettings(settings) {
     } else {
         injectStatsBoard(); // thử inject ngay nếu đang trong ván
     }
+
+    applyTheme(settings.boardTheme || "default", settings.pieceSet || "default");
+
 }
 
 // ===== HIDE OPPONENT =====
@@ -489,7 +492,7 @@ chrome.runtime.onMessage.addListener((message) => {
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
     ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
-        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats"],
+        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet"],
     (data) => { currentSettings = data; applySettings(currentSettings); }
 );
 
@@ -1428,3 +1431,51 @@ let hudCheckInterval = setInterval(() => {
         injectStatsBoard();
     }
 }, 2000);
+
+
+// ===== APPLY THEME =====
+function applyTheme(boardValue, pieceValue) {
+    let styleEl = document.getElementById('martin-theme-overrides');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'martin-theme-overrides';
+        document.head.appendChild(styleEl);
+    }
+
+    let css = "";
+
+    if (boardValue === "wood_premium") {
+        css += `
+            wc-chess-board {
+                background-image: url("https://i.imgur.com/Io7cpFa.jpg") !important;
+                background-size: cover !important;
+                background-position: center !important;
+            }
+            wc-chess-board svg.coordinates {
+                opacity: 0.6 !important;
+            }
+        `;
+    } else if (boardValue === "dark_neon") {
+        css += `
+            wc-chess-board {
+                background: repeating-conic-gradient(
+                    #0d1117 0% 25%, 
+                    #1e2a3a 0% 50%
+                ) 0 0 / 12.5% 12.5% !important;
+            }
+            wc-chess-board svg.coordinates {
+                opacity: 0.5 !important;
+            }
+        `;
+    }
+
+    if (pieceValue === "shadow") {
+        css += `
+            wc-chess-board .piece {
+                filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.7)) !important;
+            }
+        `;
+    }
+
+    styleEl.innerHTML = css;
+}

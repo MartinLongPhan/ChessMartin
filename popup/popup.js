@@ -22,32 +22,36 @@ document.addEventListener("DOMContentLoaded", () => {
         elements[id] = document.getElementById(id);
     });
 
+    const boardTheme = document.getElementById("boardTheme");
+    const pieceSet   = document.getElementById("pieceSet");
+
     // ===== LOAD SETTINGS =====
-    chrome.storage.sync.get(storageKeys, (data) => {
+    chrome.storage.sync.get([...storageKeys, "boardTheme", "pieceSet"], (data) => {
         Object.keys(controls).forEach(id => {
             const storageKey = controls[id];
             if (elements[id]) {
                 elements[id].checked = data[storageKey] || false;
             }
         });
+    
+        boardTheme.value = data.boardTheme || "default";
+        pieceSet.value   = data.pieceSet   || "default";
     });
 
     // ===== UPDATE SETTINGS =====
     function updateSettings() {
         const settings = {};
         Object.keys(controls).forEach(id => {
-            const storageKey = controls[id];
-            settings[storageKey] = elements[id].checked;
+            settings[controls[id]] = elements[id].checked;
         });
+        settings.boardTheme = boardTheme.value;
+        settings.pieceSet   = pieceSet.value;
 
         chrome.storage.sync.set(settings);
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs[0]?.id) return;
-            chrome.tabs.sendMessage(tabs[0].id, {
-                action: "updateSettings",
-                ...settings
-            });
+            chrome.tabs.sendMessage(tabs[0].id, { action: "updateSettings", ...settings });
         });
     }
 
@@ -55,4 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
     Object.values(elements).forEach(el => {
         if (el) el.addEventListener("change", updateSettings);
     });
+
+    [boardTheme, pieceSet].forEach(el => el.addEventListener("change", updateSettings));
 });
