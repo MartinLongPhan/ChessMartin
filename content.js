@@ -917,6 +917,7 @@ document.head.appendChild(cleanStyle);
 
         board.addEventListener('pointerdown', (e) => {
             if (!enabled) return;
+            if (e.button !== 0) return;
             pointerMoved = false;
 
             const piece = e.target.closest('.piece');
