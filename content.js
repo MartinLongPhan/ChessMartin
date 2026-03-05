@@ -1059,54 +1059,63 @@ function injectLichessButton() {
 
 function getPGN() {
     try {
-        // 1. Lấy tên người chơi
-        const whiteName = document.querySelector('.player-tagline-white .user-tagline-username, [data-cy="white-player-name"]')?.innerText || "White";
-        const blackName = document.querySelector('.player-tagline-black .user-tagline-username, [data-cy="black-player-name"]')?.innerText || "Black";
-        
-        // 2. Tìm tất cả các node chứa nước đi (thử mọi selector có thể)
-        const moveNodes = document.querySelectorAll('.vertical-move-list .node, .move-node, [data-whole-move-number] .node');
-        
-        if (moveNodes.length === 0) return null;
+        const whiteName = document.querySelector(
+            '[data-cy="white-player-tagline"] .user-tagline-username, ' +
+            '.player-tagline-white .user-tagline-username'
+        )?.innerText?.trim() || "White";
 
-        let movesArray = [];
-        moveNodes.forEach((node) => {
-            let txt = node.innerText.trim();
-            // CHỈ LẤY: Các ký tự như e4, Nf3, O-O, d5... 
-            // LOẠI BỎ: Số thứ tự (1., 2.), thời gian (0:15), icon (!!, ?)
-            if (txt && 
-                !txt.includes(':') && 
-                !txt.includes('.') && 
-                txt.length >= 2 && 
-                txt.length <= 7) {
-                // Làm sạch nước đi (chỉ lấy mã nước đi đầu tiên nếu bị dính chữ)
-                movesArray.push(txt.split(/\s+/)[0]);
-            }
+        const blackName = document.querySelector(
+            '[data-cy="black-player-tagline"] .user-tagline-username, ' +
+            '.player-tagline-black .user-tagline-username'
+        )?.innerText?.trim() || "Black";
+
+        // Lấy tất cả node nước đi theo thứ tự
+        const nodes = document.querySelectorAll('.main-line-ply');
+        if (!nodes.length) {
+            console.error('[MartinPGN] Không tìm thấy .main-line-ply');
+            return null;
+        }
+
+        const moves = [];
+        nodes.forEach(node => {
+            const span = node.querySelector('.node-highlight-content');
+            if (!span) return;
+
+            // Lấy chữ cái quân cờ từ data-figurine (N, B, R, Q, K)
+            const figurine = span.querySelector('[data-figurine]')?.dataset?.figurine || '';
+
+            // Lấy text thuần — bỏ qua icon, chỉ lấy text node
+            let moveText = '';
+            span.childNodes.forEach(child => {
+                if (child.nodeType === Node.TEXT_NODE) {
+                    moveText += child.textContent;
+                }
+            });
+            moveText = moveText.trim(); // ví dụ: "f6", "xc5", "d4"
+
+            if (!moveText) return;
+
+            // Ghép lại: "N" + "f6" = "Nf6", "" + "d4" = "d4"
+            const fullMove = figurine + moveText;
+            console.log('[MartinPGN] node:', node.dataset.node, '→', fullMove);
+            moves.push(fullMove);
         });
 
-        // 3. Loại bỏ nước đi trùng lặp nếu Chess.com render thừa (thường xảy ra ở ván kết thúc)
-        // Chess.com đôi khi render 2 lần nước đi cuối, ta cần lọc lại.
-        let uniqueMoves = [];
-        for(let i = 0; i < movesArray.length; i++) {
-            if (movesArray[i] !== movesArray[i-1]) {
-                uniqueMoves.push(movesArray[i]);
-            }
-        }
+        if (!moves.length) return null;
 
-        if (uniqueMoves.length === 0) return null;
+        // Dựng PGN
+        let pgnBody = '';
+        moves.forEach((m, i) => {
+            if (i % 2 === 0) pgnBody += `${Math.floor(i / 2) + 1}. ${m} `;
+            else pgnBody += `${m} `;
+        });
 
-        // 4. Dựng PGN chuẩn
-        let pgnMoves = "";
-        for (let i = 0; i < uniqueMoves.length; i++) {
-            if (i % 2 === 0) {
-                pgnMoves += `${(i / 2) + 1}. ${uniqueMoves[i]} `;
-            } else {
-                pgnMoves += `${uniqueMoves[i]} `;
-            }
-        }
+        const pgn = `[Event "Live Chess"]\n[White "${whiteName}"]\n[Black "${blackName}"]\n[Result "*"]\n\n${pgnBody.trim()}`;
+        console.log('[MartinPGN] PGN:\n', pgn);
+        return pgn;
 
-        return `[Event "Live Chess"]\n[White "${whiteName}"]\n[Black "${blackName}"]\n[Result "*"]\n\n${pgnMoves.trim()}`;
     } catch (e) {
-        console.error("Lỗi quét PGN:", e);
+        console.error('[MartinPGN] Lỗi:', e);
         return null;
     }
 }
