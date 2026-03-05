@@ -1198,17 +1198,23 @@ function getOpponentUsername() {
 }
 async function fetchChessComStats(username) {
     return new Promise((resolve) => {
-        chrome.runtime.sendMessage(
-            { action: 'fetchStats', username },
-            (response) => {
-                if (chrome.runtime.lastError) {
-                    console.warn('[MartinHUD] Lỗi:', chrome.runtime.lastError.message);
-                    resolve(null);
-                } else {
-                    resolve(response);
+        try {
+            chrome.runtime.sendMessage(
+                { action: 'fetchStats', username },
+                (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn('[MartinHUD] Lỗi:', chrome.runtime.lastError.message);
+                        resolve(null);
+                    } else {
+                        resolve(response);
+                    }
                 }
-            }
-        );
+            );
+        } catch (e) {
+            // Extension context invalidated — reload trang để fix
+            console.warn('[MartinHUD] Extension context lỗi, cần reload trang');
+            resolve(null);
+        }
     });
 }
 function formatWDL(cat) {
