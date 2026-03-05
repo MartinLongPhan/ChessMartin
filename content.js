@@ -319,6 +319,7 @@ function drawDigitAdvanced(ctx, char, x, y, theme) {
 // }
 
 function updateAllClocks() {
+    if (!document.body.classList.contains('martin-digital-clock')) return;
     document.querySelectorAll('.clock-time-monospace').forEach(span => {
         let timeText = span.innerText.trim();
         if (!timeText) return;
@@ -352,9 +353,21 @@ function startDigitalClock() {
     digitalClockInterval = setInterval(updateAllClocks, 500);
 }
 function stopDigitalClock() {
-    if (digitalClockInterval) { clearInterval(digitalClockInterval); digitalClockInterval = null; }
+    if (digitalClockInterval) { 
+        clearInterval(digitalClockInterval); 
+        digitalClockInterval = null; 
+    }
     document.body.classList.remove('martin-digital-clock');
+    
+    // Xóa canvas trước
     document.querySelectorAll('.martin-led-canvas').forEach(c => c.remove());
+    
+    // Reset font-size về mặc định cho clock text
+    document.querySelectorAll('.clock-time-monospace').forEach(el => {
+        el.style.fontSize = '';
+        el.style.lineHeight = '';
+        el.style.color = '';
+    });
 }
 
 // ===== FULLSCREEN BUTTON =====
@@ -999,7 +1012,6 @@ function injectLichessButton() {
         const btn = document.createElement('button');
         btn.className = 'cc-button-component cc-button-secondary cc-button-xx-large cc-bg-secondary martin-lichess-btn';
         
-        // --- Giữ nguyên phần Style của bạn ---
         btn.style.cssText = `
             margin-top: 10px;
             width: 100%;
@@ -1014,27 +1026,88 @@ function injectLichessButton() {
             cursor: pointer;
         `;
         
-        btn.innerHTML = `<span>🧬 Phân tích trên Lichess (Stockfish 16)</span>`;
+        btn.innerHTML = `<span>🧬 Phân tích trên Lichess (Full)</span>`;
 
-        // --- THAY ĐOẠN ADD EVENT LISTENER VÀO ĐÂY ---
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
             e.preventDefault();
-            e.stopPropagation(); // Chặn Chess.com can thiệp
+            e.stopPropagation();
+        
+            const pgnData = getPGN();
             
-            // Gọi hàm martinGetFen được expose global từ Legal Moves
-            const fen = (typeof window.martinGetFen === 'function') ? window.martinGetFen() : null;
-            console.log("DEBUG - FEN lấy được:", fen);
-
-            if (fen) {
-                const lichessUrl = `https://lichess.org/analysis/standard/${fen.replace(/\s+/g, '_')}`;
-                window.open(lichessUrl, '_blank');
+            if (pgnData) {
+                // 1. Lưu vào Clipboard để bạn có thể Ctrl+V nếu URL bị lỗi
+                await navigator.clipboard.writeText(pgnData);
+                
+                // 2. Thử mở qua URL (Dùng định dạng tối giản)
+                const encodedPGN = encodeURIComponent(pgnData);
+                const url = `https://lichess.org/analysis/pgn/${encodedPGN}`;
+                
+                window.open(url, '_blank');
+        
+                // Hiện một thông báo nhỏ trên nút để biết đã xử lý
+                const originalText = btn.innerHTML;
+                btn.innerHTML = "✅ Đã Copy PGN & Đang mở...";
+                setTimeout(() => btn.innerHTML = originalText, 2000);
             } else {
-                console.error("Lỗi: Không lấy được FEN từ bàn cờ!");
-                alert("Lỗi: Không lấy được dữ liệu bàn cờ để phân tích.");
+                alert("Không tìm thấy danh sách nước đi! Hãy chắc chắn bảng Move List đang hiển thị.");
             }
-        }, true); // 'true' để ưu tiên xử lý trước các sự kiện khác của web
+        }, true);
 
         buttonContainer.appendChild(btn);
+    }
+}
+
+function getPGN() {
+    try {
+        // 1. Lấy tên người chơi
+        const whiteName = document.querySelector('.player-tagline-white .user-tagline-username, [data-cy="white-player-name"]')?.innerText || "White";
+        const blackName = document.querySelector('.player-tagline-black .user-tagline-username, [data-cy="black-player-name"]')?.innerText || "Black";
+        
+        // 2. Tìm tất cả các node chứa nước đi (thử mọi selector có thể)
+        const moveNodes = document.querySelectorAll('.vertical-move-list .node, .move-node, [data-whole-move-number] .node');
+        
+        if (moveNodes.length === 0) return null;
+
+        let movesArray = [];
+        moveNodes.forEach((node) => {
+            let txt = node.innerText.trim();
+            // CHỈ LẤY: Các ký tự như e4, Nf3, O-O, d5... 
+            // LOẠI BỎ: Số thứ tự (1., 2.), thời gian (0:15), icon (!!, ?)
+            if (txt && 
+                !txt.includes(':') && 
+                !txt.includes('.') && 
+                txt.length >= 2 && 
+                txt.length <= 7) {
+                // Làm sạch nước đi (chỉ lấy mã nước đi đầu tiên nếu bị dính chữ)
+                movesArray.push(txt.split(/\s+/)[0]);
+            }
+        });
+
+        // 3. Loại bỏ nước đi trùng lặp nếu Chess.com render thừa (thường xảy ra ở ván kết thúc)
+        // Chess.com đôi khi render 2 lần nước đi cuối, ta cần lọc lại.
+        let uniqueMoves = [];
+        for(let i = 0; i < movesArray.length; i++) {
+            if (movesArray[i] !== movesArray[i-1]) {
+                uniqueMoves.push(movesArray[i]);
+            }
+        }
+
+        if (uniqueMoves.length === 0) return null;
+
+        // 4. Dựng PGN chuẩn
+        let pgnMoves = "";
+        for (let i = 0; i < uniqueMoves.length; i++) {
+            if (i % 2 === 0) {
+                pgnMoves += `${(i / 2) + 1}. ${uniqueMoves[i]} `;
+            } else {
+                pgnMoves += `${uniqueMoves[i]} `;
+            }
+        }
+
+        return `[Event "Live Chess"]\n[White "${whiteName}"]\n[Black "${blackName}"]\n[Result "*"]\n\n${pgnMoves.trim()}`;
+    } catch (e) {
+        console.error("Lỗi quét PGN:", e);
+        return null;
     }
 }
 
