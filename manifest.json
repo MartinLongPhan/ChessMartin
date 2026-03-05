@@ -1,15 +1,16 @@
 {
     "manifest_version": 3,
     "name": "MartinChessVN",
-    "version": "1.0",
-    "description": "UI Enhancer for Chess.com - Larger Clock, Focus Mode & Fullscreen.",
+    "version": "2.0",
+    "description": "UI Enhancer for Chess.com - Larger Clock, Insights HUD & Analysis.",
     "permissions": [
         "storage",
         "activeTab",
         "scripting"
     ],
     "host_permissions": [
-        "https://www.chess.com/*"
+        "https://www.chess.com/*",
+        "https://api.chess.com/*" 
     ],
     "action": {
         "default_popup": "popup/popup.html"

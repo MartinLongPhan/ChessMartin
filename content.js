@@ -400,6 +400,13 @@ function applySettings(settings) {
     if (typeof window._martinSetLegalMoves === 'function') {
         window._martinSetLegalMoves(!!settings.legalMoves);
     }
+    isHudEnabled = !!settings.opponentStats;
+    if (!isHudEnabled) {
+        removeStatsBoard();
+        lastOpponentUsername = null;
+    } else {
+        injectStatsBoard(); // thử inject ngay nếu đang trong ván
+    }
 }
 
 // ===== HIDE OPPONENT =====
@@ -482,7 +489,7 @@ chrome.runtime.onMessage.addListener((message) => {
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
     ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
-        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves"],
+        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats"],
     (data) => { currentSettings = data; applySettings(currentSettings); }
 );
 
@@ -1132,3 +1139,180 @@ const gameObserver = new MutationObserver((mutations) => {
 });
 
 gameObserver.observe(document.body, { childList: true, subtree: true });
+
+
+// ===== OPPONENT STATS HUD =====
+let isHudEnabled = false;
+let lastOpponentUsername = null;
+
+
+function isMyGame() {
+    return !!document.querySelector('.clock-bottom');
+}
+
+chrome.storage.sync.get(['opponentStats'], (data) => {
+    isHudEnabled = data.opponentStats || false;
+});
+
+chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === "updateSettings") {
+        isHudEnabled = !!request.opponentStats;
+        if (!isHudEnabled) {
+            removeStatsBoard();
+            lastOpponentUsername = null;
+        }
+    }
+});
+
+function removeStatsBoard() {
+    document.getElementById('martin-stats-board')?.remove();
+}
+
+function getOpponentUsername() {
+    const el = document.querySelector(
+        '.board-layout-top .cc-user-username-component, ' +
+        '.player-top .cc-user-username-component, ' +
+        '.board-layout-top .user-tagline-username'
+    );
+    return el?.innerText?.trim() || null;
+}
+async function fetchChessComStats(username) {
+    try {
+        const [statsRes, profileRes] = await Promise.all([
+            fetch(`https://api.chess.com/pub/player/${username}/stats`),
+            fetch(`https://api.chess.com/pub/player/${username}`)
+        ]);
+        const stats   = statsRes.ok   ? await statsRes.json()   : null;
+        const profile = profileRes.ok ? await profileRes.json() : null;
+        return { stats, profile };
+    } catch (e) {
+        console.error('[MartinHUD] Fetch lỗi:', e);
+        return null;
+    }
+}
+function formatWDL(cat) {
+    if (!cat?.record) return '—';
+    const { win = 0, draw = 0, loss = 0 } = cat.record;
+    const total = win + draw + loss;
+    const pct = total > 0 ? Math.round(win / total * 100) : 0;
+    return `${win}W ${draw}D ${loss}L <span style="color:#aaa;font-size:10px">(${pct}%)</span>`;
+}
+
+function renderStatsBoard(username, data) {
+    removeStatsBoard();
+
+    const stats   = data?.stats;
+    const profile = data?.profile;
+
+    const bullet = stats?.chess_bullet;
+    const blitz  = stats?.chess_blitz;
+    const rapid  = stats?.chess_rapid;
+
+    const country = profile?.country
+        ? profile.country.split('/').pop()  // "VN", "US", ...
+        : null;
+    const joinDate = profile?.joined
+        ? new Date(profile.joined * 1000).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short' })
+        : null;
+
+    const rows = [
+        { label: '⚡ Bullet', rating: bullet?.last?.rating, wdl: formatWDL(bullet) },
+        { label: '🔥 Blitz',  rating: blitz?.last?.rating,  wdl: formatWDL(blitz)  },
+        { label: '🕐 Rapid',  rating: rapid?.last?.rating,  wdl: formatWDL(rapid)  },
+    ];
+
+    const board = document.createElement('div');
+    board.id = 'martin-stats-board';
+    board.style.cssText = `
+        position: fixed;
+        top: 60px;
+        left: 12px;
+        z-index: 99999;
+        background: rgba(12, 12, 14, 0.92);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 10px;
+        padding: 10px 14px;
+        min-width: 210px;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 12px;
+        color: #e0e0e0;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        user-select: none;
+    `;
+
+    board.innerHTML = `
+        <div style="font-size:11px;color:#888;margin-bottom:2px;letter-spacing:0.5px">
+            👤 <b style="color:#ccc">${username}</b>
+        </div>
+        ${country || joinDate ? `
+        <div style="font-size:10px;color:#666;margin-bottom:7px">
+            ${country  ? `🌍 ${country}` : ''}
+            ${country && joinDate ? ' &nbsp;·&nbsp; ' : ''}
+            ${joinDate ? `📅 ${joinDate}` : ''}
+        </div>` : '<div style="margin-bottom:7px"></div>'}
+        <table style="width:100%;border-collapse:collapse">
+            <tr style="color:#555;font-size:10px;text-transform:uppercase">
+                <td style="padding:2px 4px">Mode</td>
+                <td style="padding:2px 4px;text-align:right">Rating</td>
+                <td style="padding:2px 8px;text-align:right">W / D / L</td>
+            </tr>
+            ${rows.map(r => `
+            <tr style="border-top:1px solid rgba(255,255,255,0.05)">
+                <td style="padding:4px 4px;color:#bbb">${r.label}</td>
+                <td style="padding:4px 4px;text-align:right;font-weight:bold;color:#fff">
+                    ${r.rating ?? '—'}
+                </td>
+                <td style="padding:4px 8px;text-align:right;white-space:nowrap">
+                    ${r.wdl}
+                </td>
+            </tr>`).join('')}
+        </table>
+    `;
+
+    document.body.appendChild(board);
+}
+async function injectStatsBoard() {
+    if (!isHudEnabled) return;
+    if (!isMyGame()) return; 
+    if (document.getElementById('martin-stats-board')) return;
+
+    const username = getOpponentUsername();
+    if (!username) return;
+    if (username === lastOpponentUsername) return;
+
+    lastOpponentUsername = username;
+
+    // Placeholder loading
+    const loading = document.createElement('div');
+    loading.id = 'martin-stats-board';
+    loading.style.cssText = `
+        position:fixed;top:60px;left:12px;z-index:99999;
+        background:rgba(12,12,14,0.88);border:1px solid rgba(255,255,255,0.08);
+        border-radius:10px;padding:10px 16px;color:#888;font-size:12px;
+        font-family:'Segoe UI',sans-serif;
+    `;
+    loading.innerText = '⏳ Loading stats...';
+    document.body.appendChild(loading);
+
+    const data = await fetchChessComStats(username);
+    renderStatsBoard(username, data);
+}
+
+// Theo dõi khi đối thủ thay đổi (ván mới)
+let hudCheckInterval = setInterval(() => {
+    if (!isHudEnabled) return;
+    if (!isMyGame()) {         // ← thêm block này
+        removeStatsBoard();
+        lastOpponentUsername = null;
+        return;
+    }
+    const username = getOpponentUsername();
+    if (!username) return;
+
+    if (username !== lastOpponentUsername) {
+        lastOpponentUsername = null; // reset để trigger fetch mới
+        removeStatsBoard();
+        injectStatsBoard();
+    }
+}, 2000);
