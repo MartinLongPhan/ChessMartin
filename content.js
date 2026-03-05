@@ -1145,6 +1145,23 @@ gameObserver.observe(document.body, { childList: true, subtree: true });
 let isHudEnabled = false;
 let lastOpponentUsername = null;
 
+let hudMinimized = false;
+
+function getBoardLeftEdge() {
+    const boardEl = document.querySelector('wc-chess-board .board, wc-chess-board');
+    if (!boardEl) return 12;
+    const rect = boardEl.getBoundingClientRect();
+    const left = rect.left - 226; // 210px HUD + 16px gap
+    return Math.max(left, 8);
+}
+
+function updateHudPosition() {
+    const el = document.getElementById('martin-stats-board');
+    if (el) el.style.left = getBoardLeftEdge() + 'px';
+}
+
+
+
 
 function isMyGame() {
     return !!document.querySelector('.clock-bottom');
@@ -1178,15 +1195,26 @@ function getOpponentUsername() {
 }
 async function fetchChessComStats(username) {
     try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000); // timeout 5s
+
         const [statsRes, profileRes] = await Promise.all([
-            fetch(`https://api.chess.com/pub/player/${username}/stats`),
-            fetch(`https://api.chess.com/pub/player/${username}`)
+            fetch(`https://api.chess.com/pub/player/${username}/stats`, { signal: controller.signal }),
+            fetch(`https://api.chess.com/pub/player/${username}`, { signal: controller.signal })
         ]);
+
+        clearTimeout(timeout);
+
         const stats   = statsRes.ok   ? await statsRes.json()   : null;
         const profile = profileRes.ok ? await profileRes.json() : null;
         return { stats, profile };
+
     } catch (e) {
-        console.error('[MartinHUD] Fetch lỗi:', e);
+        if (e.name === 'AbortError') {
+            console.warn('[MartinHUD] Timeout khi fetch:', username);
+        } else {
+            console.warn('[MartinHUD] Fetch lỗi:', e.message);
+        }
         return null;
     }
 }
@@ -1198,6 +1226,7 @@ function formatWDL(cat) {
     return `${win}W ${draw}D ${loss}L <span style="color:#aaa;font-size:10px">(${pct}%)</span>`;
 }
 
+
 function renderStatsBoard(username, data) {
     removeStatsBoard();
 
@@ -1208,9 +1237,7 @@ function renderStatsBoard(username, data) {
     const blitz  = stats?.chess_blitz;
     const rapid  = stats?.chess_rapid;
 
-    const country = profile?.country
-        ? profile.country.split('/').pop()  // "VN", "US", ...
-        : null;
+    const country = profile?.country ? profile.country.split('/').pop() : null;
     const joinDate = profile?.joined
         ? new Date(profile.joined * 1000).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short' })
         : null;
@@ -1221,57 +1248,142 @@ function renderStatsBoard(username, data) {
         { label: '🕐 Rapid',  rating: rapid?.last?.rating,  wdl: formatWDL(rapid)  },
     ];
 
-    const board = document.createElement('div');
-    board.id = 'martin-stats-board';
-    board.style.cssText = `
+    // Giữ lại vị trí đã kéo nếu có
+    if (!window._martinHudPos) {
+        window._martinHudPos = { left: 8, top: window.innerHeight / 2 - 14 };
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'martin-stats-board';
+    wrapper.style.cssText = `
         position: fixed;
-        top: 60px;
-        left: 12px;
+        top: ${window._martinHudPos.top}px;
+        left: ${window._martinHudPos.left}px;
         z-index: 99999;
-        background: rgba(12, 12, 14, 0.92);
-        backdrop-filter: blur(8px);
-        border: 1px solid rgba(255,255,255,0.09);
-        border-radius: 10px;
-        padding: 10px 14px;
-        min-width: 210px;
         font-family: 'Segoe UI', sans-serif;
         font-size: 12px;
-        color: #e0e0e0;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-        user-select: none;
     `;
 
-    board.innerHTML = `
-        <div style="font-size:11px;color:#888;margin-bottom:2px;letter-spacing:0.5px">
-            👤 <b style="color:#ccc">${username}</b>
+    wrapper.innerHTML = `
+        <div id="martin-hud-icon" style="
+            width: 28px; height: 28px;
+            background: rgba(12,12,14,0.88);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: grab;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+            transition: background 0.2s, border-color 0.2s;
+            user-select: none;
+        ">👤</div>
+
+        <div id="martin-hud-panel" style="
+            display: none;
+            position: absolute;
+            left: 36px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(12,12,14,0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.09);
+            border-radius: 10px;
+            padding: 10px 14px;
+            min-width: 220px;
+            color: #e0e0e0;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            white-space: nowrap;
+            pointer-events: none;
+        ">
+            <div style="font-size:11px;color:#888;margin-bottom:2px">
+                👤 <b style="color:#ccc">${username}</b>
+                ${country ? `<span style="color:#555;margin-left:6px">🌍 ${country}</span>` : ''}
+                ${joinDate ? `<span style="color:#555;margin-left:4px">📅 ${joinDate}</span>` : ''}
+            </div>
+            <table style="width:100%;border-collapse:collapse;margin-top:6px">
+                <tr style="color:#555;font-size:10px;text-transform:uppercase">
+                    <td style="padding:2px 4px">Mode</td>
+                    <td style="padding:2px 4px;text-align:right">Rating</td>
+                    <td style="padding:2px 8px;text-align:right">W / D / L</td>
+                </tr>
+                ${rows.map(r => `
+                <tr style="border-top:1px solid rgba(255,255,255,0.05)">
+                    <td style="padding:4px 4px;color:#bbb">${r.label}</td>
+                    <td style="padding:4px 4px;text-align:right;font-weight:bold;color:#fff">
+                        ${r.rating ?? '—'}
+                    </td>
+                    <td style="padding:4px 8px;text-align:right;white-space:nowrap">
+                        ${r.wdl}
+                    </td>
+                </tr>`).join('')}
+            </table>
         </div>
-        ${country || joinDate ? `
-        <div style="font-size:10px;color:#666;margin-bottom:7px">
-            ${country  ? `🌍 ${country}` : ''}
-            ${country && joinDate ? ' &nbsp;·&nbsp; ' : ''}
-            ${joinDate ? `📅 ${joinDate}` : ''}
-        </div>` : '<div style="margin-bottom:7px"></div>'}
-        <table style="width:100%;border-collapse:collapse">
-            <tr style="color:#555;font-size:10px;text-transform:uppercase">
-                <td style="padding:2px 4px">Mode</td>
-                <td style="padding:2px 4px;text-align:right">Rating</td>
-                <td style="padding:2px 8px;text-align:right">W / D / L</td>
-            </tr>
-            ${rows.map(r => `
-            <tr style="border-top:1px solid rgba(255,255,255,0.05)">
-                <td style="padding:4px 4px;color:#bbb">${r.label}</td>
-                <td style="padding:4px 4px;text-align:right;font-weight:bold;color:#fff">
-                    ${r.rating ?? '—'}
-                </td>
-                <td style="padding:4px 8px;text-align:right;white-space:nowrap">
-                    ${r.wdl}
-                </td>
-            </tr>`).join('')}
-        </table>
     `;
 
-    document.body.appendChild(board);
+    document.body.appendChild(wrapper);
+
+    const icon  = document.getElementById('martin-hud-icon');
+    const panel = document.getElementById('martin-hud-panel');
+
+    // ===== DRAG =====
+    let dragging = false;
+    let dragOffsetX = 0, dragOffsetY = 0;
+
+    icon.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        dragging = true;
+        dragOffsetX = e.clientX - wrapper.getBoundingClientRect().left;
+        dragOffsetY = e.clientY - wrapper.getBoundingClientRect().top;
+        icon.style.cursor = 'grabbing';
+        icon.setPointerCapture(e.pointerId);
+        panel.style.display = 'none'; // ẩn panel khi đang kéo
+        e.preventDefault();
+    });
+
+    icon.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const newLeft = Math.max(0, Math.min(window.innerWidth  - 36, e.clientX - dragOffsetX));
+        const newTop  = Math.max(0, Math.min(window.innerHeight - 36, e.clientY - dragOffsetY));
+        wrapper.style.left = newLeft + 'px';
+        wrapper.style.top  = newTop  + 'px';
+        window._martinHudPos = { left: newLeft, top: newTop };
+    });
+
+    icon.addEventListener('pointerup', (e) => {
+        if (!dragging) return;
+        dragging = false;
+        icon.style.cursor = 'grab';
+
+        // Tự điều chỉnh hướng bung panel (trái/phải) tùy vị trí
+        const left = wrapper.getBoundingClientRect().left;
+        if (left > window.innerWidth / 2) {
+            panel.style.left  = 'auto';
+            panel.style.right = '36px';
+        } else {
+            panel.style.left  = '36px';
+            panel.style.right = 'auto';
+        }
+    });
+
+    // ===== HOVER =====
+    icon.addEventListener('mouseenter', () => {
+        if (dragging) return;
+        panel.style.pointerEvents = 'auto';
+        panel.style.display = 'block';
+        icon.style.background   = 'rgba(57,255,20,0.15)';
+        icon.style.borderColor  = 'rgba(57,255,20,0.4)';
+    });
+
+    wrapper.addEventListener('mouseleave', () => {
+        if (dragging) return;
+        panel.style.display = 'none';
+        icon.style.background  = 'rgba(12,12,14,0.88)';
+        icon.style.borderColor = 'rgba(255,255,255,0.12)';
+    });
 }
+// Cập nhật vị trí HUD khi resize window
+window.addEventListener('resize', updateHudPosition);
+
 async function injectStatsBoard() {
     if (!isHudEnabled) return;
     if (!isMyGame()) return; 
