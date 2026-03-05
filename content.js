@@ -1197,29 +1197,19 @@ function getOpponentUsername() {
     return el?.innerText?.trim() || null;
 }
 async function fetchChessComStats(username) {
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000); // timeout 5s
-
-        const [statsRes, profileRes] = await Promise.all([
-            fetch(`https://api.chess.com/pub/player/${username}/stats`, { signal: controller.signal }),
-            fetch(`https://api.chess.com/pub/player/${username}`, { signal: controller.signal })
-        ]);
-
-        clearTimeout(timeout);
-
-        const stats   = statsRes.ok   ? await statsRes.json()   : null;
-        const profile = profileRes.ok ? await profileRes.json() : null;
-        return { stats, profile };
-
-    } catch (e) {
-        if (e.name === 'AbortError') {
-            console.warn('[MartinHUD] Timeout khi fetch:', username);
-        } else {
-            console.warn('[MartinHUD] Fetch lỗi:', e.message);
-        }
-        return null;
-    }
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+            { action: 'fetchStats', username },
+            (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn('[MartinHUD] Lỗi:', chrome.runtime.lastError.message);
+                    resolve(null);
+                } else {
+                    resolve(response);
+                }
+            }
+        );
+    });
 }
 function formatWDL(cat) {
     if (!cat?.record) return '—';
