@@ -1471,6 +1471,21 @@ function applyTheme(boardValue, pieceValue) {
                 filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.7)) !important;
             }
         `;
+    } else if (pieceValue === "neo_custom") {
+        css += `
+            .piece.wp, .promotion-piece.wp { background-image: url("https://i.imgur.com/DjCKKYN.png") !important; }
+            .piece.wn, .promotion-piece.wn { background-image: url("https://i.imgur.com/RNsTmEW.png") !important; }
+            .piece.wb, .promotion-piece.wb { background-image: url("https://i.imgur.com/fRplOUQ.png") !important; }
+            .piece.wr, .promotion-piece.wr { background-image: url("https://i.imgur.com/slzILd1.png") !important; }
+            .piece.wq, .promotion-piece.wq { background-image: url("https://i.imgur.com/wTj4X48.png") !important; }
+            .piece.wk, .promotion-piece.wk { background-image: url("https://i.imgur.com/0FdRIHg.png") !important; }
+            .piece.bp, .promotion-piece.bp { background-image: url("https://i.imgur.com/7bZESur.png") !important; }
+            .piece.bn, .promotion-piece.bn { background-image: url("https://i.imgur.com/wWR8jGH.png") !important; }
+            .piece.bb, .promotion-piece.bb { background-image: url("https://i.imgur.com/pwsxxEq.png") !important; }
+            .piece.br, .promotion-piece.br { background-image: url("https://i.imgur.com/GrmgNSd.png") !important; }
+            .piece.bq, .promotion-piece.bq { background-image: url("https://i.imgur.com/pc1nijw.png") !important; }
+            .piece.bk, .promotion-piece.bk { background-image: url("https://i.imgur.com/WEUrraI.png") !important; }
+        `;
     }
 
     styleEl.innerHTML = css;
