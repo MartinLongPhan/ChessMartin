@@ -12,7 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
         digitalClock: "digitalClock",
         legalMoves: "legalMoves",
         opponentStats: "opponentStats",
-        tacticalMap: "tacticalMap"
+        tacticalMap: "tacticalMap",
+        mirrorBoard: "mirrorBoard"
     };
 
     const elements = {};

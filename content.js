@@ -411,6 +411,9 @@ function applySettings(settings) {
     if (typeof window._martinSetTacticalMap === 'function') {
         window._martinSetTacticalMap(!!settings.tacticalMap);
     }
+    if (typeof window._martinSetMirrorBoard === 'function') {
+        window._martinSetMirrorBoard(!!settings.mirrorBoard);
+    }
     applyTheme(settings.boardTheme || "default", settings.pieceSet || "default");
 
 }
@@ -495,7 +498,7 @@ chrome.runtime.onMessage.addListener((message) => {
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
     ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
-        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet","tacticalMap"],
+        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet","tacticalMap","mirrorBoard"],
     (data) => { currentSettings = data; applySettings(currentSettings); }
 );
 
@@ -1760,5 +1763,441 @@ function applyTheme(boardValue, pieceValue) {
     window.addEventListener('resize', () => {
         if (enabled) analyzeTactical();
     });
+
+})();
+
+// ===== MIRRORBOARD — Command Center =====
+(function () {
+
+    let enabled = false;
+    let mirrorEl = null;
+    let lastRenderedFen = null;
+    let isDragging = false;
+    let dragOffX = 0, dragOffY = 0;
+    let isMinimized = false;
+
+    window._martinSetMirrorBoard = function (val) {
+        enabled = !!val;
+        if (enabled) { ensureMirrorBoard(); updateMirrorBoard(); }
+        else removeMirrorBoard();
+    };
+
+    // ===== STYLE (CSS từ version 1) =====
+    const style = document.createElement('style');
+    style.textContent = `
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap');
+
+        #martin-mirror-board {
+            position: fixed;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 99990;
+            font-family: 'Rajdhani', sans-serif;
+            user-select: none;
+            transition: opacity 0.2s ease;
+        }
+
+        #martin-mirror-board.hidden { opacity: 0; pointer-events: none; }
+
+        /* ===== SHELL ===== */
+        #mmb-shell {
+            background: rgba(8, 8, 10, 0.96);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 12px;
+            box-shadow:
+                0 0 0 1px rgba(57,255,20,0.06),
+                0 20px 60px rgba(0,0,0,0.8),
+                inset 0 1px 0 rgba(255,255,255,0.05);
+            overflow: hidden;
+            width: 240px;
+        }
+
+        /* ===== HEADER ===== */
+        #mmb-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px 6px;
+            background: rgba(57,255,20,0.04);
+            border-bottom: 1px solid rgba(57,255,20,0.08);
+            cursor: grab;
+        }
+        #mmb-header:active { cursor: grabbing; }
+
+        #mmb-title {
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(57,255,20,0.85);
+        }
+
+        #mmb-header-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .mmb-btn {
+            width: 20px; height: 20px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 4px;
+            color: #666;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s;
+        }
+        .mmb-btn:hover {
+            background: rgba(57,255,20,0.12);
+            border-color: rgba(57,255,20,0.3);
+            color: rgba(57,255,20,0.9);
+        }
+
+        /* ===== BOARD AREA ===== */
+        #mmb-body {
+            padding: 10px 10px 4px;
+            transition: all 0.25s ease;
+        }
+        #mmb-body.collapsed {
+            height: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #mmb-canvas-wrap {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            border-radius: 4px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.04);
+        }
+
+        #mmb-canvas {
+            width: 220px;
+            height: 220px;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        /* Scanline overlay for CRT effect */
+        #mmb-canvas-wrap::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,0,0,0.06) 2px,
+                rgba(0,0,0,0.06) 4px
+            );
+            pointer-events: none;
+        }
+
+        /* ===== TACTICAL LEGEND ===== */
+        #mmb-legend {
+            display: flex;
+            gap: 8px;
+            padding: 8px 12px 10px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            flex-wrap: wrap;
+        }
+        .mmb-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: #555;
+            letter-spacing: 0.5px;
+        }
+        .mmb-legend-dot {
+            width: 8px; height: 8px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        .mmb-legend-dot.attack  { background: rgba(220,38,38,0.8); box-shadow: 0 0 4px rgba(255,0,0,0.5); }
+        .mmb-legend-dot.defend  { background: rgba(37,99,235,0.8); box-shadow: 0 0 4px rgba(59,130,246,0.5); }
+        .mmb-legend-dot.danger  { background: rgba(124,58,237,0.8); box-shadow: 0 0 4px rgba(139,92,246,0.5); }
+
+        /* ===== STATUS BAR ===== */
+        #mmb-status {
+            padding: 4px 12px 8px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            color: rgba(57,255,20,0.35);
+            letter-spacing: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* ===== PULSE dot ===== */
+        #mmb-pulse {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: rgba(57,255,20,0.9);
+            box-shadow: 0 0 6px rgba(57,255,20,0.8);
+            animation: mmb-blink 1.5s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        #mmb-pulse.stale {
+            background: #444;
+            box-shadow: none;
+            animation: none;
+        }
+        @keyframes mmb-blink {
+            0%,100% { opacity: 1; }
+            50%      { opacity: 0.3; }
+        }
+
+        /* ===== FLIP INDICATOR ===== */
+        #mmb-flip-badge {
+            font-size: 9px;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.2);
+            padding: 1px 5px;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 3px;
+        }
+    `;
+    
+    document.head.appendChild(style);
+
+    //===== PIECES =====
+    const PIECES = {
+        'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
+        'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟',
+    };
+   
+
+    function parseFen(fen) {
+        return fen.split(' ')[0].split('/').map(row => {
+            const cells = [];
+            for (const ch of row) {
+                if (isNaN(ch)) cells.push(ch);
+                else for (let i = 0; i < parseInt(ch); i++) cells.push(null);
+            }
+            return cells;
+        });
+    }
+
+    // ===== DRAW BOARD (logic xoay đúng từ version 2) =====
+    function drawBoard(canvas, fenRaw) {
+        const dpr = window.devicePixelRatio || 1;
+        const SIZE = 220;
+        canvas.width  = SIZE * dpr;
+        canvas.height = SIZE * dpr;
+        canvas.style.width  = SIZE + 'px';
+        canvas.style.height = SIZE + 'px';
+
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const cell = SIZE / 8;
+        const board = parseFen(fenRaw);
+
+        // Mirror luôn ngược bàn chính
+        // mainFlipped=false (góc trắng) → mirror cần rotate 180° để nhìn từ góc đen
+        // mainFlipped=true  (góc đen)   → mirror không rotate, nhìn từ góc trắng
+        const mainFlipped = document.querySelector('wc-chess-board')?.classList.contains('flipped');
+        const needRotate = !mainFlipped;
+
+        if (needRotate) {
+            ctx.translate(SIZE, SIZE);
+            ctx.rotate(Math.PI);
+        }
+
+        // Vẽ ô cờ
+        for (let ri = 0; ri < 8; ri++) {
+            for (let fi = 0; fi < 8; fi++) {
+                const isLight = (ri + fi) % 2 === 0;
+                ctx.fillStyle = isLight ? '#f0d9b5' : '#b58863';
+                ctx.fillRect(fi * cell, ri * cell, cell, cell);
+            }
+        }
+
+        // Vẽ quân cờ — counter-rotate từng ký tự để chữ không bị lật
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        for (let ri = 0; ri < 8; ri++) {
+            for (let fi = 0; fi < 8; fi++) {
+                const piece = board[ri]?.[fi];
+                if (!piece) continue;
+                const sym = PIECES[piece];
+                if (!sym) continue;
+
+                const cx = fi * cell + cell / 2;
+                const cy = ri * cell + cell / 2;
+                const isWhite = piece === piece.toUpperCase();
+                ctx.font = `${Math.round(cell * 0.72)}px serif`;
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                if (needRotate) ctx.rotate(Math.PI);
+                ctx.translate(-cx, -cy);
+
+                ctx.fillStyle = 'rgba(0,0,0,0.45)';
+                ctx.fillText(sym, cx + 1, cy + 1.5);
+
+                ctx.fillStyle = isWhite ? '#f0d9b5' : '#1a1a1a';
+                ctx.fillText(sym, cx, cy);
+
+                if (isWhite) {
+                    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                    ctx.lineWidth = 0.5;
+                    ctx.strokeText(sym, cx, cy);
+                }
+                ctx.restore();
+            }
+        }
+
+        // Coordinates — neon xanh như version 1
+        ctx.font = `${Math.round(cell * 0.2)}px 'Share Tech Mono', monospace`;
+        for (let i = 0; i < 8; i++) {
+            const fileChar = String.fromCharCode(97 + i);
+            const rankNum  = 8 - i;
+
+            ctx.save();
+            ctx.translate(i * cell + cell * 0.12, SIZE - cell * 0.12);
+            if (needRotate) ctx.rotate(Math.PI);
+            ctx.fillStyle = 'rgba(57,255,20,0.3)';
+            ctx.textAlign = 'center';
+            ctx.fillText(fileChar, 0, 0);
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(SIZE - cell * 0.12, i * cell + cell * 0.22);
+            if (needRotate) ctx.rotate(Math.PI);
+            ctx.fillStyle = 'rgba(57,255,20,0.3)';
+            ctx.textAlign = 'center';
+            ctx.fillText(rankNum, 0, 0);
+            ctx.restore();
+        }
+    }
+
+    // ===== BUILD DOM =====
+    function ensureMirrorBoard() {
+        if (mirrorEl?.isConnected) return;
+
+        mirrorEl = document.createElement('div');
+        mirrorEl.id = 'martin-mirror-board';
+        mirrorEl.innerHTML = `
+            <div id="mmb-shell">
+                <div id="mmb-header">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <div id="mmb-pulse"></div>
+                        <span id="mmb-title">MIRROR BOARD</span>
+                    </div>
+                    <div id="mmb-header-actions">
+                        <div id="mmb-flip-badge">—</div>
+                        <div class="mmb-btn" id="mmb-toggle-btn" title="Thu gọn/Mở rộng">▲</div>
+                        <div class="mmb-btn" id="mmb-close-btn" title="Đóng">✕</div>
+                    </div>
+                </div>
+                <div id="mmb-body">
+                    <div id="mmb-canvas-wrap">
+                        <canvas id="mmb-canvas"></canvas>
+                    </div>
+                </div>
+                <div id="mmb-status">WAITING FOR FEN...</div>
+            </div>
+        `;
+        document.body.appendChild(mirrorEl);
+
+        // Drag
+        const header = mirrorEl.querySelector('#mmb-header');
+        header.addEventListener('pointerdown', (e) => {
+            if (e.target.classList.contains('mmb-btn') || e.target.id === 'mmb-flip-badge') return;
+            isDragging = true;
+            const rect = mirrorEl.getBoundingClientRect();
+            dragOffX = e.clientX - rect.left;
+            dragOffY = e.clientY - rect.top;
+            header.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        });
+        header.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            mirrorEl.style.right     = 'auto';
+            mirrorEl.style.transform = 'none';
+            mirrorEl.style.left = Math.max(0, Math.min(window.innerWidth  - 240, e.clientX - dragOffX)) + 'px';
+            mirrorEl.style.top  = Math.max(0, Math.min(window.innerHeight - 60,  e.clientY - dragOffY)) + 'px';
+        });
+        header.addEventListener('pointerup', () => { isDragging = false; });
+
+        // Close
+        mirrorEl.querySelector('#mmb-close-btn').addEventListener('click', () => {
+            enabled = false;
+            removeMirrorBoard();
+            chrome.storage.sync.set({ mirrorBoard: false });
+        });
+
+        // Minimize
+        mirrorEl.querySelector('#mmb-toggle-btn').addEventListener('click', () => {
+            isMinimized = !isMinimized;
+            mirrorEl.querySelector('#mmb-body').classList.toggle('collapsed', isMinimized);
+            mirrorEl.querySelector('#mmb-toggle-btn').textContent = isMinimized ? '▼' : '▲';
+        });
+
+        console.log('[MartinMirror] MirrorBoard READY ✓');
+    }
+
+    function removeMirrorBoard() {
+        mirrorEl?.remove();
+        mirrorEl = null;
+        lastRenderedFen = null;
+    }
+
+    // ===== UPDATE =====
+    function updateMirrorBoard() {
+        if (!enabled || !mirrorEl?.isConnected) return;
+
+        const fenRaw = typeof window.martinGetFen === 'function' ? window.martinGetFen() : null;
+        const pulse  = mirrorEl.querySelector('#mmb-pulse');
+        const status = mirrorEl.querySelector('#mmb-status');
+        const badge  = mirrorEl.querySelector('#mmb-flip-badge');
+        const canvas = mirrorEl.querySelector('#mmb-canvas');
+
+        if (!fenRaw) {
+            pulse?.classList.add('stale');
+            if (status) status.textContent = 'NO GAME DETECTED';
+            return;
+        }
+
+        if (fenRaw === lastRenderedFen) return;
+        lastRenderedFen = fenRaw;
+
+        pulse?.classList.remove('stale');
+        if (status) status.textContent = fenRaw.substring(0, 38) + '…';
+
+        const isFlipped = document.querySelector('wc-chess-board')?.classList.contains('flipped');
+        if (badge) {
+            badge.textContent = isFlipped ? 'BLACK' : 'WHITE';
+            badge.style.color = isFlipped ? 'rgba(200,150,255,0.5)' : 'rgba(200,200,200,0.35)';
+        }
+
+        if (canvas) drawBoard(canvas, fenRaw);
+    }
+
+    // ===== OBSERVER =====
+    function startFenObserver() {
+        const board = document.querySelector('wc-chess-board');
+        if (!board) { setTimeout(startFenObserver, 600); return; }
+        new MutationObserver(() => { if (enabled) updateMirrorBoard(); })
+            .observe(board, {
+                subtree: true, childList: true,
+                attributes: true,
+                attributeFilter: ['class', 'fen', 'data-fen']
+            });
+    }
+
+    window.addEventListener('resize', () => { if (enabled) { lastRenderedFen = null; updateMirrorBoard(); } });
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startFenObserver);
+    else startFenObserver();
 
 })();
