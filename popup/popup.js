@@ -11,7 +11,8 @@ document.addEventListener("DOMContentLoaded", () => {
         hideGameMessages: "hideGameMessages",
         digitalClock: "digitalClock",
         legalMoves: "legalMoves",
-        opponentStats: "opponentStats" // Key mới của bạn
+        opponentStats: "opponentStats",
+        tacticalMap: "tacticalMap"
     };
 
     const elements = {};

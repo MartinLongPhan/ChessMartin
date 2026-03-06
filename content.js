@@ -408,6 +408,9 @@ function applySettings(settings) {
         injectStatsBoard(); // thử inject ngay nếu đang trong ván
     }
 
+    if (typeof window._martinSetTacticalMap === 'function') {
+        window._martinSetTacticalMap(!!settings.tacticalMap);
+    }
     applyTheme(settings.boardTheme || "default", settings.pieceSet || "default");
 
 }
@@ -492,7 +495,7 @@ chrome.runtime.onMessage.addListener((message) => {
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
     ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
-        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet"],
+        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet","tacticalMap"],
     (data) => { currentSettings = data; applySettings(currentSettings); }
 );
 
@@ -1490,3 +1493,272 @@ function applyTheme(boardValue, pieceValue) {
 
     styleEl.innerHTML = css;
 }
+
+
+// ===== TACTICAL MAP — Move Consequence Highlight =====
+(function () {
+    let enabled = false;
+    let overlayEl = null;
+
+    // Expose để applySettings() gọi từ ngoài
+    window._martinSetTacticalMap = function (val) {
+        enabled = !!val;
+        document.body.classList.toggle('martin-tactical-active', enabled);
+        if (!enabled) clearTacticalOverlay();
+    };
+
+    // ===== STYLE =====
+    const style = document.createElement('style');
+    style.textContent = `
+        /* Container chính */
+#martin-tactical-overlay {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9998;
+    top: 0; left: 0;
+    width: 0; height: 0;
+}
+
+/* Base của ô vuông */
+.martin-tactical-sq {
+    position: fixed;
+    pointer-events: none;
+    background: transparent !important; /* Tuyệt đối không có màu nền */
+    border: none !important;            /* Không dùng border để tránh chiếm diện tích */
+    box-sizing: border-box;
+}
+
+/* Đỏ: Khung mục tiêu có thể ăn được */
+.martin-tactical-sq.attack {
+    /* Dùng outline để tạo khung mà không phủ lên ô cờ */
+    outline: 3px solid #dc2626 !important;
+    outline-offset: -3px; /* Đẩy khung vào sát bên trong mép ô cờ */
+}
+
+/* Xanh: Khung bảo vệ quân mình */
+.martin-tactical-sq.defend {
+    outline: 3px solid #2563eb !important;
+    outline-offset: -3px;
+}
+
+/* HỒNG: Cảnh báo quân vừa đi đang bị đối thủ nhắm ăn */
+.martin-tactical-sq.under-attack {
+    /* Màu hồng đậm (Deep Pink) cực kỳ gắt để báo động */
+    outline: 4px solid #ff1493 !important; 
+    outline-offset: -4px;
+    /* Chớp tắt liên tục để fen không thể ngó lơ */
+    animation: martin-tactical-blink 0.6s steps(2) infinite;
+}
+
+/* Nhấp nháy kiểu đèn hiệu (chỉ hiện/ẩn cái khung) */
+@keyframes martin-tactical-blink {
+    0% { visibility: visible; }
+    100% { visibility: hidden; }
+}
+    `;
+    document.head.appendChild(style);
+
+    // ===== OVERLAY =====
+    function ensureTacticalOverlay() {
+        if (overlayEl?.isConnected) return overlayEl;
+        overlayEl = document.createElement('div');
+        overlayEl.id = 'martin-tactical-overlay';
+        document.body.appendChild(overlayEl);
+        return overlayEl;
+    }
+
+    function clearTacticalOverlay() {
+        if (overlayEl) overlayEl.innerHTML = '';
+    }
+
+    // ===== BOARD HELPERS (tái sử dụng từ Legal Moves module) =====
+    function getBoardRect() {
+        const boardEl = document.querySelector('wc-chess-board');
+        if (!boardEl) return null;
+        const inner = boardEl.querySelector('.board');
+        return (inner || boardEl).getBoundingClientRect();
+    }
+
+    function getFlipped() {
+        return document.querySelector('wc-chess-board')?.classList.contains('flipped') ?? false;
+    }
+
+    function sqToPixel(sq, rect, flipped) {
+        const f = sq.charCodeAt(0) - 97;
+        const r = parseInt(sq[1]) - 1;
+        const cell = rect.width / 8;
+        const col = flipped ? 7 - f : f;
+        const row = flipped ? r : 7 - r;
+        return { x: rect.left + col * cell, y: rect.top + row * cell, cell };
+    }
+
+    function drawTacticalSquare(ov, sq, type, rect, flipped) {
+        const { x, y, cell } = sqToPixel(sq, rect, flipped);
+        const el = document.createElement('div');
+        el.className = `martin-tactical-sq ${type}`;
+        el.style.left   = `${x}px`;
+        el.style.top    = `${y}px`;
+        el.style.width  = `${cell}px`;
+        el.style.height = `${cell}px`;
+        ov.appendChild(el);
+    }
+
+    // ===== CORE LOGIC =====
+    function buildFen() {
+        // Tái sử dụng hàm getFen() từ Legal Moves module
+        if (typeof window.martinGetFen === 'function') return window.martinGetFen();
+        return null;
+    }
+
+    function getLastMovedSquare() {
+        // Chess.com highlight ô vừa di chuyển bằng class "highlight"
+        const highlights = document.querySelectorAll('wc-chess-board .highlight');
+        // Thường có 2 highlight: ô xuất phát và ô đến — lấy ô đến (last child / by order)
+        if (!highlights.length) return null;
+        
+        // Thử đọc từ last-move attribute của board
+        const board = document.querySelector('wc-chess-board');
+        if (board) {
+            // Một số version chess.com có data-last-move="e2e4"
+            const attr = board.getAttribute('data-last-move') || board.getAttribute('last-move');
+            if (attr && attr.length >= 4) {
+                return attr.slice(2, 4); // ô đến
+            }
+        }
+
+        // Fallback: parse từ class square-XX của highlight
+        for (const h of highlights) {
+            const cls = h.className || '';
+            const m = cls.match(/square-(\d)(\d)/);
+            if (m) {
+                const file = String.fromCharCode(96 + parseInt(m[1]));
+                const rank = m[2];
+                return file + rank;
+            }
+        }
+        return null;
+    }
+
+    function getMyColor() {
+        // Đọc màu người chơi từ DOM
+        const myClockSide = document.querySelector('.clock-bottom');
+        if (!myClockSide) return 'w';
+        const board = document.querySelector('wc-chess-board');
+        const flipped = board?.classList.contains('flipped');
+        return flipped ? 'b' : 'w';
+    }
+
+    function analyzeTactical() {
+        if (!enabled) return;
+
+        const fenRaw = buildFen();
+        if (!fenRaw) return;
+
+        const rect = getBoardRect();
+        if (!rect || rect.width === 0) return;
+
+        const flipped = getFlipped();
+        const myColor = getMyColor();
+        const oppColor = myColor === 'w' ? 'b' : 'w';
+
+        let ch;
+        try {
+            ch = new Chess(fenRaw);
+        } catch (e) {
+            try { ch = new Chess(fenRaw.split(' ')[0] + ' w - - 0 1'); }
+            catch (e2) { return; }
+        }
+
+        const lastSq = getLastMovedSquare();
+
+        // ===== 1. Tính tất cả nước đi của quân mình (để biết mình tấn công / bảo vệ gì) =====
+        // Chuyển lượt sang màu mình để query
+        const fenParts = fenRaw.split(' ');
+        fenParts[1] = myColor;
+        let myChess;
+        try { myChess = new Chess(fenParts.join(' ')); }
+        catch (e) { return; }
+
+        const myMoves = myChess.moves({ verbose: true });
+
+        // Ô bị tấn công (quân đối thủ nằm ở đó)
+        const attackSquares = new Set();
+        // Ô được bảo vệ (quân mình nằm ở đó, mình có thể "đi đến" bằng capture)
+        const defendSquares = new Set();
+
+        myMoves.forEach(m => {
+            if (m.captured) {
+                // Ô có quân đối thủ → đang bị tấn công
+                attackSquares.add(m.to);
+            } else {
+                // Kiểm tra nếu ô đó đang có quân mình (bảo vệ = mình kiểm soát ô đó)
+                const pieceAtTo = ch.get(m.to);
+                if (pieceAtTo && pieceAtTo.color === myColor) {
+                    defendSquares.add(m.to);
+                }
+            }
+        });
+
+        // ===== 2. Tính quân vừa đi có đang bị tấn công không =====
+        const underAttackSquares = new Set();
+        if (lastSq) {
+            fenParts[1] = oppColor;
+            let oppChess;
+            try { oppChess = new Chess(fenParts.join(' ')); }
+            catch (e) { oppChess = null; }
+
+            if (oppChess) {
+                const oppMoves = oppChess.moves({ verbose: true });
+                oppMoves.forEach(m => {
+                    if (m.to === lastSq && m.captured) {
+                        underAttackSquares.add(lastSq);
+                    }
+                });
+            }
+        }
+
+        // ===== 3. Render =====
+        const ov = ensureTacticalOverlay();
+        clearTacticalOverlay();
+
+        // Thứ tự render: defend → attack → under-attack (under-attack vẽ sau cùng để lên trên)
+        defendSquares.forEach(sq => {
+            if (!underAttackSquares.has(sq)) // không override under-attack
+                drawTacticalSquare(ov, sq, 'defend', rect, flipped);
+        });
+        attackSquares.forEach(sq => drawTacticalSquare(ov, sq, 'attack', rect, flipped));
+        underAttackSquares.forEach(sq => drawTacticalSquare(ov, sq, 'under-attack', rect, flipped));
+    }
+
+    // ===== OBSERVER: chạy lại mỗi khi có nước đi mới =====
+    let lastFenTactical = null;
+    const tacticalObs = new MutationObserver(() => {
+        if (!enabled) return;
+        const fen = buildFen();
+        if (!fen || fen === lastFenTactical) return;
+        lastFenTactical = fen;
+        // Delay nhỏ để chess.com update DOM xong
+        setTimeout(analyzeTactical, 150);
+    });
+
+    function initTactical() {
+        const board = document.querySelector('wc-chess-board');
+        if (!board) { setTimeout(initTactical, 600); return; }
+        tacticalObs.observe(board, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['class', 'fen', 'data-fen', 'data-last-move']
+        });
+        console.log('[MartinTactical] Tactical Map READY ✓');
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initTactical);
+    else initTactical();
+
+    // Cập nhật vị trí khi resize (board thay đổi kích thước)
+    window.addEventListener('resize', () => {
+        if (enabled) analyzeTactical();
+    });
+
+})();
