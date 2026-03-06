@@ -1766,7 +1766,8 @@ function applyTheme(boardValue, pieceValue) {
 
 })();
 
-// ===== MIRRORBOARD — Command Center =====
+// ===== MIRRORBOARD — Tactical Command Center =====
+// Mini bàn cờ gương hiển thị FEN realtime bên phải màn hình
 (function () {
 
     let enabled = false;
@@ -1776,13 +1777,18 @@ function applyTheme(boardValue, pieceValue) {
     let dragOffX = 0, dragOffY = 0;
     let isMinimized = false;
 
+    // ===== EXPOSE WINDOW BRIDGE =====
     window._martinSetMirrorBoard = function (val) {
         enabled = !!val;
-        if (enabled) { ensureMirrorBoard(); updateMirrorBoard(); }
-        else removeMirrorBoard();
+        if (enabled) {
+            ensureMirrorBoard();
+            updateMirrorBoard();
+        } else {
+            removeMirrorBoard();
+        }
     };
 
-    // ===== STYLE (CSS từ version 1) =====
+    // ===== STYLE =====
     const style = document.createElement('style');
     style.textContent = `
         @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap');
@@ -1964,28 +1970,75 @@ function applyTheme(boardValue, pieceValue) {
             border-radius: 3px;
         }
     `;
-    
     document.head.appendChild(style);
 
-    //===== PIECES =====
-    const PIECES = {
+    // ===== PIECE SYMBOLS (Unicode) =====
+    const PIECE_UNICODE = {
         'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
         'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟',
     };
-   
 
+    // ===== PARSE FEN TO BOARD ARRAY =====
     function parseFen(fen) {
-        return fen.split(' ')[0].split('/').map(row => {
+        const piecePart = fen.split(' ')[0];
+        const rows = piecePart.split('/');
+        const board = [];
+        for (const row of rows) {
             const cells = [];
             for (const ch of row) {
-                if (isNaN(ch)) cells.push(ch);
-                else for (let i = 0; i < parseInt(ch); i++) cells.push(null);
+                if (isNaN(ch)) { cells.push(ch); }
+                else { for (let i = 0; i < parseInt(ch); i++) cells.push(null); }
             }
-            return cells;
-        });
+            board.push(cells);
+        }
+        return board; // board[0] = rank 8, board[7] = rank 1
     }
 
-    // ===== DRAW BOARD (logic xoay đúng từ version 2) =====
+    // ===== TACTICAL ANALYSIS =====
+    function getTacticalData(fenRaw) {
+        const result = { attack: new Set(), defend: new Set(), danger: new Set() };
+        if (typeof Chess === 'undefined' || !fenRaw) return result;
+
+        try {
+            const parts = fenRaw.split(' ');
+            const myColor = getMyColor();
+            const oppColor = myColor === 'w' ? 'b' : 'w';
+
+            // My moves
+            parts[1] = myColor;
+            const myChess = new Chess(parts.slice(0,6).join(' '));
+            const myMoves = myChess.moves({ verbose: true });
+            const baseChess = new Chess(fenRaw);
+
+            myMoves.forEach(m => {
+                if (m.captured) {
+                    result.attack.add(m.to);
+                } else {
+                    const p = baseChess.get(m.to);
+                    if (p && p.color === myColor) result.defend.add(m.to);
+                }
+            });
+
+            // Opponent attacking my pieces
+            parts[1] = oppColor;
+            const oppChess = new Chess(parts.slice(0,6).join(' '));
+            const oppMoves = oppChess.moves({ verbose: true });
+            oppMoves.forEach(m => {
+                if (m.captured) {
+                    const piece = baseChess.get(m.to);
+                    if (piece && piece.color === myColor) result.danger.add(m.to);
+                }
+            });
+        } catch (e) {}
+        return result;
+    }
+
+    function getMyColor() {
+        const board = document.querySelector('wc-chess-board');
+        return board?.classList.contains('flipped') ? 'b' : 'w';
+    }
+
+    // ===== DRAW BOARD ON CANVAS =====
     function drawBoard(canvas, fenRaw) {
         const dpr = window.devicePixelRatio || 1;
         const SIZE = 220;
@@ -1993,60 +2046,89 @@ function applyTheme(boardValue, pieceValue) {
         canvas.height = SIZE * dpr;
         canvas.style.width  = SIZE + 'px';
         canvas.style.height = SIZE + 'px';
-
+    
         const ctx = canvas.getContext('2d');
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-        const cell = SIZE / 8;
+    
+        const cellSize = SIZE / 8;
         const board = parseFen(fenRaw);
-
-        // Mirror luôn ngược bàn chính
-        // mainFlipped=false (góc trắng) → mirror cần rotate 180° để nhìn từ góc đen
-        // mainFlipped=true  (góc đen)   → mirror không rotate, nhìn từ góc trắng
-        const mainFlipped = document.querySelector('wc-chess-board')?.classList.contains('flipped');
-        const needRotate = !mainFlipped;
-
-        if (needRotate) {
-            ctx.translate(SIZE, SIZE);
-            ctx.rotate(Math.PI);
-        }
-
-        // Vẽ ô cờ
+    
+        // ===== TACTICAL HIGHLIGHTS =====
+        let tactical = { attack: new Set(), defend: new Set(), danger: new Set() };
+        try { tactical = getTacticalData(fenRaw); } catch(e) {}
+    
+        // Rotate 180° — mirror always shows opposite perspective
+        ctx.translate(SIZE, SIZE);
+        ctx.rotate(Math.PI);
+    
+        // Draw squares
         for (let ri = 0; ri < 8; ri++) {
             for (let fi = 0; fi < 8; fi++) {
                 const isLight = (ri + fi) % 2 === 0;
-                ctx.fillStyle = isLight ? '#f0d9b5' : '#b58863';
-                ctx.fillRect(fi * cell, ri * cell, cell, cell);
+                const sq = String.fromCharCode(97 + fi) + (8 - ri);
+    
+                let baseColor;
+                if (isLight) {
+                    baseColor = tactical.attack.has(sq)  ? '#5c1a1a' :
+                                tactical.danger.has(sq)  ? '#3a1a5c' :
+                                tactical.defend.has(sq)  ? '#1a2f5c' :
+                                '#2c2c2c';
+                } else {
+                    baseColor = tactical.attack.has(sq)  ? '#3d0d0d' :
+                                tactical.danger.has(sq)  ? '#270d3d' :
+                                tactical.defend.has(sq)  ? '#0d1e3d' :
+                                '#1a1a1a';
+                }
+    
+                ctx.fillStyle = baseColor;
+                ctx.fillRect(fi * cellSize, ri * cellSize, cellSize, cellSize);
+    
+                // Tactical glow border
+                if (tactical.attack.has(sq)) {
+                    ctx.strokeStyle = 'rgba(220,38,38,0.7)';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(fi * cellSize + 0.75, ri * cellSize + 0.75, cellSize - 1.5, cellSize - 1.5);
+                } else if (tactical.danger.has(sq)) {
+                    ctx.strokeStyle = 'rgba(167,139,250,0.8)';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(fi * cellSize + 0.75, ri * cellSize + 0.75, cellSize - 1.5, cellSize - 1.5);
+                } else if (tactical.defend.has(sq)) {
+                    ctx.strokeStyle = 'rgba(96,165,250,0.6)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(fi * cellSize + 0.5, ri * cellSize + 0.5, cellSize - 1, cellSize - 1);
+                }
             }
         }
-
-        // Vẽ quân cờ — counter-rotate từng ký tự để chữ không bị lật
+    
+        // Draw pieces — counter-rotate each glyph so it reads upright
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-
+    
         for (let ri = 0; ri < 8; ri++) {
             for (let fi = 0; fi < 8; fi++) {
-                const piece = board[ri]?.[fi];
+                const piece = board[ri][fi];
                 if (!piece) continue;
-                const sym = PIECES[piece];
+    
+                const sym = PIECE_UNICODE[piece];
                 if (!sym) continue;
-
-                const cx = fi * cell + cell / 2;
-                const cy = ri * cell + cell / 2;
+    
+                const cx = fi * cellSize + cellSize / 2;
+                const cy = ri * cellSize + cellSize / 2;
                 const isWhite = piece === piece.toUpperCase();
-                ctx.font = `${Math.round(cell * 0.72)}px serif`;
-
+                const fontSize = Math.round(cellSize * 0.7);
+                ctx.font = `${fontSize}px serif`;
+    
                 ctx.save();
                 ctx.translate(cx, cy);
-                if (needRotate) ctx.rotate(Math.PI);
+                ctx.rotate(Math.PI);
                 ctx.translate(-cx, -cy);
-
-                ctx.fillStyle = 'rgba(0,0,0,0.45)';
-                ctx.fillText(sym, cx + 1, cy + 1.5);
-
+    
+                ctx.fillStyle = isWhite ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.7)';
+                ctx.fillText(sym, cx + 1, cy + 1);
+    
                 ctx.fillStyle = isWhite ? '#f0d9b5' : '#1a1a1a';
                 ctx.fillText(sym, cx, cy);
-
+    
                 if (isWhite) {
                     ctx.strokeStyle = 'rgba(0,0,0,0.6)';
                     ctx.lineWidth = 0.5;
@@ -2055,27 +2137,27 @@ function applyTheme(boardValue, pieceValue) {
                 ctx.restore();
             }
         }
-
-        // Coordinates — neon xanh như version 1
-        ctx.font = `${Math.round(cell * 0.2)}px 'Share Tech Mono', monospace`;
+    
+        // Draw coordinates — counter-rotate labels so they're readable
+        ctx.font = `${Math.round(cellSize * 0.2)}px 'Share Tech Mono', monospace`;
         for (let i = 0; i < 8; i++) {
-            const fileChar = String.fromCharCode(97 + i);
-            const rankNum  = 8 - i;
-
+            const file = String.fromCharCode(97 + i);
+            const rank = 8 - i;
+    
             ctx.save();
-            ctx.translate(i * cell + cell * 0.12, SIZE - cell * 0.12);
-            if (needRotate) ctx.rotate(Math.PI);
-            ctx.fillStyle = 'rgba(57,255,20,0.3)';
-            ctx.textAlign = 'center';
-            ctx.fillText(fileChar, 0, 0);
+            ctx.translate(i * cellSize + 2, SIZE - 3);
+            ctx.rotate(Math.PI);
+            ctx.textAlign = 'left';
+            ctx.fillStyle = 'rgba(57,255,20,0.25)';
+            ctx.fillText(file, 0, 0);
             ctx.restore();
-
+    
             ctx.save();
-            ctx.translate(SIZE - cell * 0.12, i * cell + cell * 0.22);
-            if (needRotate) ctx.rotate(Math.PI);
-            ctx.fillStyle = 'rgba(57,255,20,0.3)';
-            ctx.textAlign = 'center';
-            ctx.fillText(rankNum, 0, 0);
+            ctx.translate(SIZE - 2, i * cellSize + 10);
+            ctx.rotate(Math.PI);
+            ctx.textAlign = 'right';
+            ctx.fillStyle = 'rgba(57,255,20,0.25)';
+            ctx.fillText(rank, 0, 0);
             ctx.restore();
         }
     }
@@ -2086,6 +2168,7 @@ function applyTheme(boardValue, pieceValue) {
 
         mirrorEl = document.createElement('div');
         mirrorEl.id = 'martin-mirror-board';
+
         mirrorEl.innerHTML = `
             <div id="mmb-shell">
                 <div id="mmb-header">
@@ -2103,13 +2186,28 @@ function applyTheme(boardValue, pieceValue) {
                     <div id="mmb-canvas-wrap">
                         <canvas id="mmb-canvas"></canvas>
                     </div>
+                    <div id="mmb-legend">
+                        <div class="mmb-legend-item">
+                            <div class="mmb-legend-dot attack"></div>
+                            <span>ATTACK</span>
+                        </div>
+                        <div class="mmb-legend-item">
+                            <div class="mmb-legend-dot defend"></div>
+                            <span>DEFEND</span>
+                        </div>
+                        <div class="mmb-legend-item">
+                            <div class="mmb-legend-dot danger"></div>
+                            <span>DANGER</span>
+                        </div>
+                    </div>
                 </div>
                 <div id="mmb-status">WAITING FOR FEN...</div>
             </div>
         `;
+
         document.body.appendChild(mirrorEl);
 
-        // Drag
+        // ===== DRAG =====
         const header = mirrorEl.querySelector('#mmb-header');
         header.addEventListener('pointerdown', (e) => {
             if (e.target.classList.contains('mmb-btn') || e.target.id === 'mmb-flip-badge') return;
@@ -2122,25 +2220,30 @@ function applyTheme(boardValue, pieceValue) {
         });
         header.addEventListener('pointermove', (e) => {
             if (!isDragging) return;
+            const newLeft = Math.max(0, Math.min(window.innerWidth  - 240, e.clientX - dragOffX));
+            const newTop  = Math.max(0, Math.min(window.innerHeight - 60,  e.clientY - dragOffY));
             mirrorEl.style.right     = 'auto';
+            mirrorEl.style.left      = newLeft + 'px';
+            mirrorEl.style.top       = newTop  + 'px';
             mirrorEl.style.transform = 'none';
-            mirrorEl.style.left = Math.max(0, Math.min(window.innerWidth  - 240, e.clientX - dragOffX)) + 'px';
-            mirrorEl.style.top  = Math.max(0, Math.min(window.innerHeight - 60,  e.clientY - dragOffY)) + 'px';
         });
         header.addEventListener('pointerup', () => { isDragging = false; });
 
-        // Close
+        // ===== CLOSE =====
         mirrorEl.querySelector('#mmb-close-btn').addEventListener('click', () => {
             enabled = false;
             removeMirrorBoard();
+            // Sync setting off
             chrome.storage.sync.set({ mirrorBoard: false });
         });
 
-        // Minimize
+        // ===== TOGGLE MINIMIZE =====
         mirrorEl.querySelector('#mmb-toggle-btn').addEventListener('click', () => {
             isMinimized = !isMinimized;
-            mirrorEl.querySelector('#mmb-body').classList.toggle('collapsed', isMinimized);
-            mirrorEl.querySelector('#mmb-toggle-btn').textContent = isMinimized ? '▼' : '▲';
+            const body = mirrorEl.querySelector('#mmb-body');
+            const btn  = mirrorEl.querySelector('#mmb-toggle-btn');
+            body.classList.toggle('collapsed', isMinimized);
+            btn.textContent = isMinimized ? '▼' : '▲';
         });
 
         console.log('[MartinMirror] MirrorBoard READY ✓');
@@ -2156,14 +2259,17 @@ function applyTheme(boardValue, pieceValue) {
     function updateMirrorBoard() {
         if (!enabled || !mirrorEl?.isConnected) return;
 
-        const fenRaw = typeof window.martinGetFen === 'function' ? window.martinGetFen() : null;
+        const fenRaw = typeof window.martinGetFen === 'function'
+            ? window.martinGetFen()
+            : null;
+
         const pulse  = mirrorEl.querySelector('#mmb-pulse');
         const status = mirrorEl.querySelector('#mmb-status');
         const badge  = mirrorEl.querySelector('#mmb-flip-badge');
         const canvas = mirrorEl.querySelector('#mmb-canvas');
 
         if (!fenRaw) {
-            pulse?.classList.add('stale');
+            if (pulse)  pulse.classList.add('stale');
             if (status) status.textContent = 'NO GAME DETECTED';
             return;
         }
@@ -2171,7 +2277,7 @@ function applyTheme(boardValue, pieceValue) {
         if (fenRaw === lastRenderedFen) return;
         lastRenderedFen = fenRaw;
 
-        pulse?.classList.remove('stale');
+        if (pulse)  pulse.classList.remove('stale');
         if (status) status.textContent = fenRaw.substring(0, 38) + '…';
 
         const isFlipped = document.querySelector('wc-chess-board')?.classList.contains('flipped');
@@ -2183,20 +2289,29 @@ function applyTheme(boardValue, pieceValue) {
         if (canvas) drawBoard(canvas, fenRaw);
     }
 
-    // ===== OBSERVER =====
+    // ===== FEN OBSERVER =====
+    let mirrorFenObs = null;
+
     function startFenObserver() {
         const board = document.querySelector('wc-chess-board');
         if (!board) { setTimeout(startFenObserver, 600); return; }
-        new MutationObserver(() => { if (enabled) updateMirrorBoard(); })
-            .observe(board, {
-                subtree: true, childList: true,
-                attributes: true,
-                attributeFilter: ['class', 'fen', 'data-fen']
-            });
+
+        mirrorFenObs = new MutationObserver(() => {
+            if (enabled) updateMirrorBoard();
+        });
+
+        mirrorFenObs.observe(board, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['class', 'fen', 'data-fen']
+        });
     }
 
-    window.addEventListener('resize', () => { if (enabled) { lastRenderedFen = null; updateMirrorBoard(); } });
+    // Cũng cập nhật khi resize
+    window.addEventListener('resize', () => { if (enabled) updateMirrorBoard(); });
 
+    // ===== INIT =====
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startFenObserver);
     else startFenObserver();
 
