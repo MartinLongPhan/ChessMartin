@@ -572,6 +572,19 @@ white-space: nowrap !important;
 .martin-hide-game-messages .chat-input-component,
 .martin-hide-game-messages .chat-room-chat,
 .martin-hide-game-messages .resizable-chat-area-component { display: none !important; }
+/* ===== CLEAN UI — Ẩn sidebar links không cần thiết ===== */
+
+/* Ẩn nút "Dùng thử miễn phí" */
+.martin-clean .sidebar-free-trial-button { display: none !important; }
+
+/* Ẩn nút "Câu đố" (puzzles) trong sidebar */
+.martin-clean a.sidebar-link[href*="/puzzles"] { display: none !important; }
+
+/* Ẩn nút "Thêm nữa / Ít hơn" (accordion toggle) */
+.martin-clean .sidebar-accordion-header.sidebar-link { display: none !important; }
+
+/* Ẩn nút "Học" (learn) trong sidebar */
+.martin-clean a.sidebar-link[href*="/learn"] { display: none !important; }
 
 .martin-digital-clock .clock-time-monospace {
 font-size: 0 !important; line-height: 0 !important; color: transparent !important;
