@@ -1,5 +1,3 @@
-
-
 const style = document.createElement("style");
 style.textContent = `
 /* ===== HIDE OPPONENT - ẩn hết trừ clock và captured pieces ===== */
@@ -399,8 +397,8 @@ function applySettings(settings) {
     settings.digitalClock ? startDigitalClock() : stopDigitalClock();
 
     // Ẩn nút "Dùng thử miễn phí"
-const freeTrialBtn = document.querySelector('.sidebar-free-trial-button');
-if (freeTrialBtn) freeTrialBtn.style.display = 'none';
+    const freeTrialBtn = document.querySelector('.sidebar-free-trial-button');
+    if (freeTrialBtn) freeTrialBtn.style.display = 'none';
 
     // Legal Moves — dùng window bridge để giao tiếp với IIFE
     if (typeof window._martinSetLegalMoves === 'function') {
@@ -505,6 +503,7 @@ chrome.runtime.onMessage.addListener((message) => {
     }
 });
 
+
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
     ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
@@ -524,6 +523,7 @@ const observer = new MutationObserver((mutations) => {
     }, 100);
 });
 observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+
 
 // ===== STYLES =====
 const cleanStyle = document.createElement("style");

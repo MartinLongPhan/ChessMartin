@@ -26,19 +26,21 @@
         }
     ],
     "background": {
-    "service_worker": "background.js"
+        "service_worker": "background.js"
     },
     "content_scripts": [
-        {
-            "matches": [
-                "https://www.chess.com/*"
-            ],
-            "js": [
-                "assets/chess.min.js",
-                "content.js"
-            ],
-            "run_at": "document_idle"
-        }
+    {
+        "matches": ["https://www.chess.com/*"],
+        "js": ["early-init.js"],
+        "run_at": "document_start"
+    },
+    {
+        "matches": ["https://www.chess.com/*"],
+        "js": [
+            "assets/chess.min.js",
+            "content.js"
+        ],
+        "run_at": "document_idle"
+    }
     ]
-    
 }
