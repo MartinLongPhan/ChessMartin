@@ -762,7 +762,6 @@ document.head.appendChild(cleanStyle);
                 fenRows.push(rowStr);
             }
     
-            // Thêm các thông số phụ (giả định lượt đi và nhập thành để Lichess vẫn nhận diện được thế cờ)
             return fenRows.join('/') + " w KQkq - 0 1"; 
         } catch (e) {
             console.error("Lỗi khi quét FEN:", e);
@@ -770,7 +769,6 @@ document.head.appendChild(cleanStyle);
         }
     }
 
-    // Expose global helper để chỗ khác (nút Lichess) có thể dùng lại
     window.martinGetFen = getFen;
 
     function buildFenFromDOM() {
@@ -862,7 +860,7 @@ document.head.appendChild(cleanStyle);
             return;
         }
 
-        // 🟨 Highlight ô xuất phát
+        // Highlight ô xuất phát
         if (selectedSq) {
             const { x, y, cell } = sqToPixel(selectedSq, rect, flipped);
             const origin = document.createElement('div');
@@ -887,7 +885,7 @@ document.head.appendChild(cleanStyle);
                 el.style.width = `${cell}px`;
                 el.style.height = `${cell}px`;
             } else {
-                // 🟡 MOVE THƯỜNG
+                // MOVE THƯỜNG
                 const size = cell * 0.22;
                 el.classList.add('dot');
                 el.style.left = `${x + cell / 2 - size / 2}px`;
@@ -1271,8 +1269,8 @@ function renderStatsBoard(username, data) {
         : null;
 
     const rows = [
-        { label: '⚡ Bullet', rating: bullet?.last?.rating, wdl: formatWDL(bullet) },
-        { label: '🔥 Blitz',  rating: blitz?.last?.rating,  wdl: formatWDL(blitz)  },
+        { label: '🚀 Bullet', rating: bullet?.last?.rating, wdl: formatWDL(bullet) },
+        { label: '⚡ Blitz',  rating: blitz?.last?.rating,  wdl: formatWDL(blitz)  },
         { label: '🕐 Rapid',  rating: rapid?.last?.rating,  wdl: formatWDL(rapid)  },
     ];
 
@@ -1442,7 +1440,7 @@ async function injectStatsBoard() {
 // Theo dõi khi đối thủ thay đổi (ván mới)
 let hudCheckInterval = setInterval(() => {
     if (!isHudEnabled) return;
-    if (!isMyGame()) {         // ← thêm block này
+    if (!isMyGame()) {
         removeStatsBoard();
         lastOpponentUsername = null;
         return;
@@ -1451,7 +1449,7 @@ let hudCheckInterval = setInterval(() => {
     if (!username) return;
 
     if (username !== lastOpponentUsername) {
-        lastOpponentUsername = null; // reset để trigger fetch mới
+        lastOpponentUsername = null;
         removeStatsBoard();
         injectStatsBoard();
     }
@@ -1839,7 +1837,7 @@ function applyTheme(boardValue, pieceValue) {
                 0 20px 60px rgba(0,0,0,0.8),
                 inset 0 1px 0 rgba(255,255,255,0.05);
             overflow: hidden;
-            width: 240px;
+            width: 300px;
         }
 
         /* ===== HEADER ===== */
@@ -1898,33 +1896,18 @@ function applyTheme(boardValue, pieceValue) {
 
         #mmb-canvas-wrap {
             position: relative;
-            width: 220px;
-            height: 220px;
+            width: 280px;
+            height: 280px;
             border-radius: 4px;
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.04);
         }
 
         #mmb-canvas {
-            width: 220px;
-            height: 220px;
+            width: 280px;
+            height: 280px;
             display: block;
             image-rendering: pixelated;
-        }
-
-        /* Scanline overlay for CRT effect */
-        #mmb-canvas-wrap::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(0,0,0,0.06) 2px,
-                rgba(0,0,0,0.06) 4px
-            );
-            pointer-events: none;
         }
 
         /* ===== TACTICAL LEGEND ===== */
@@ -2064,7 +2047,7 @@ function applyTheme(boardValue, pieceValue) {
     // ===== DRAW BOARD ON CANVAS =====
     function drawBoard(canvas, fenRaw) {
         const dpr = window.devicePixelRatio || 1;
-        const SIZE = 220;
+        const SIZE = 280;
         canvas.width  = SIZE * dpr;
         canvas.height = SIZE * dpr;
         canvas.style.width  = SIZE + 'px';
@@ -2089,36 +2072,26 @@ function applyTheme(boardValue, pieceValue) {
             for (let fi = 0; fi < 8; fi++) {
                 const isLight = (ri + fi) % 2 === 0;
                 const sq = String.fromCharCode(97 + fi) + (8 - ri);
-    
-                let baseColor;
-                if (isLight) {
-                    baseColor = tactical.attack.has(sq)  ? '#5c1a1a' :
-                                tactical.danger.has(sq)  ? '#3a1a5c' :
-                                tactical.defend.has(sq)  ? '#1a2f5c' :
-                                '#2c2c2c';
-                } else {
-                    baseColor = tactical.attack.has(sq)  ? '#3d0d0d' :
-                                tactical.danger.has(sq)  ? '#270d3d' :
-                                tactical.defend.has(sq)  ? '#0d1e3d' :
-                                '#1a1a1a';
-                }
-    
+        
+                // Luôn dùng màu gốc, không tô theo tactical
+                let baseColor = isLight ? '#ebecd0' : '#779556';
+        
                 ctx.fillStyle = baseColor;
                 ctx.fillRect(fi * cellSize, ri * cellSize, cellSize, cellSize);
-    
-                // Tactical glow border
+        
+                // Chỉ vẽ viền tactical
                 if (tactical.attack.has(sq)) {
-                    ctx.strokeStyle = 'rgba(220,38,38,0.7)';
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeRect(fi * cellSize + 0.75, ri * cellSize + 0.75, cellSize - 1.5, cellSize - 1.5);
+                    ctx.strokeStyle = 'rgba(220,38,38,0.9)';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(fi * cellSize + 1.5, ri * cellSize + 1.5, cellSize - 3, cellSize - 3);
                 } else if (tactical.danger.has(sq)) {
-                    ctx.strokeStyle = 'rgba(167,139,250,0.8)';
-                    ctx.lineWidth = 1.5;
-                    ctx.strokeRect(fi * cellSize + 0.75, ri * cellSize + 0.75, cellSize - 1.5, cellSize - 1.5);
+                    ctx.strokeStyle = 'rgba(167,139,250,1)';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(fi * cellSize + 1.5, ri * cellSize + 1.5, cellSize - 3, cellSize - 3);
                 } else if (tactical.defend.has(sq)) {
-                    ctx.strokeStyle = 'rgba(96,165,250,0.6)';
-                    ctx.lineWidth = 1;
-                    ctx.strokeRect(fi * cellSize + 0.5, ri * cellSize + 0.5, cellSize - 1, cellSize - 1);
+                    ctx.strokeStyle = 'rgba(96,165,250,0.8)';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(fi * cellSize + 1.5, ri * cellSize + 1.5, cellSize - 3, cellSize - 3);
                 }
             }
         }
@@ -2131,32 +2104,38 @@ function applyTheme(boardValue, pieceValue) {
             for (let fi = 0; fi < 8; fi++) {
                 const piece = board[ri][fi];
                 if (!piece) continue;
-    
+        
                 const sym = PIECE_UNICODE[piece];
                 if (!sym) continue;
-    
+        
+                const isWhite = piece === piece.toUpperCase();
+                const fontSize = Math.round(cellSize * 0.75);
+                ctx.font = `${fontSize}px serif`;
+        
+                // Tọa độ tâm ô trong không gian gốc (trước khi rotate toàn cục)
                 const cx = fi * cellSize + cellSize / 2;
                 const cy = ri * cellSize + cellSize / 2;
-                const isWhite = piece === piece.toUpperCase();
-                const fontSize = Math.round(cellSize * 0.7);
-                ctx.font = `${fontSize}px serif`;
-    
+        
                 ctx.save();
-                ctx.translate(cx, cy);
-                ctx.rotate(Math.PI);
-                ctx.translate(-cx, -cy);
-    
-                ctx.fillStyle = isWhite ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.7)';
-                ctx.fillText(sym, cx + 1, cy + 1);
-    
-                ctx.fillStyle = isWhite ? '#f0d9b5' : '#1a1a1a';
-                ctx.fillText(sym, cx, cy);
-    
+                // Reset về gốc tọa độ thật, bỏ qua rotate toàn cục
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                
+                // Tọa độ thật sau khi canvas đã flip 180°
+                const realX = SIZE - cx;
+                const realY = SIZE - cy;
+        
+                ctx.fillStyle = isWhite ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.6)';
+                ctx.fillText(sym, realX + 1, realY + 1);
+        
+                ctx.fillStyle = isWhite ? '#f0d9b5' : '#2a2a2a';
+                ctx.fillText(sym, realX, realY);
+        
                 if (isWhite) {
-                    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+                    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
                     ctx.lineWidth = 0.5;
-                    ctx.strokeText(sym, cx, cy);
+                    ctx.strokeText(sym, realX, realY);
                 }
+        
                 ctx.restore();
             }
         }
