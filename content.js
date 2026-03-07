@@ -2075,7 +2075,26 @@ function applyTheme(boardValue, pieceValue) {
         return board;
     }
 
-
+    function getLastMove() {
+        // Thử đọc từ highlight classes của chess.com
+        const highlights = document.querySelectorAll('wc-chess-board .highlight');
+        if (highlights.length < 2) return null;
+    
+        const squares = [];
+        highlights.forEach(h => {
+            const m = h.className.match(/square-(\d)(\d)/);
+            if (m) {
+                const file = String.fromCharCode(96 + parseInt(m[1]));
+                const rank = m[2];
+                squares.push(file + rank);
+            }
+        });
+    
+        if (squares.length >= 2) {
+            return { from: squares[0], to: squares[1] };
+        }
+        return null;
+    }
     // ===== DRAW BOARD ON CANVAS =====
     function drawBoard(canvas, fenRaw) {
         console.log('[Mirror] drawBoard called, fenRaw:', fenRaw?.substring(0,20));
@@ -2131,7 +2150,19 @@ function applyTheme(boardValue, pieceValue) {
                 }
             }
         }
-    
+        
+        const lastMoveHighlight = getLastMove();
+        if (lastMoveHighlight) {
+            const { from, to } = lastMoveHighlight;
+            [from, to].forEach(sq => {
+                if (!sq) return;
+                const f = sq.charCodeAt(0) - 97;
+                const r = 8 - parseInt(sq[1]);
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.25)';
+                ctx.fillRect(f * cellSize, r * cellSize, cellSize, cellSize);
+            });
+        }
+
         // Draw pieces — counter-rotate each glyph so it reads upright
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
