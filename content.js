@@ -1,3 +1,5 @@
+
+
 const style = document.createElement("style");
 style.textContent = `
 /* ===== HIDE OPPONENT - ẩn hết trừ clock và captured pieces ===== */
@@ -395,6 +397,10 @@ function applySettings(settings) {
     settings.lowTimeAlert ? startLowTimeInterval() : stopLowTimeInterval();
     document.body.classList.toggle("martin-hide-game-messages", !!settings.hideGameMessages);
     settings.digitalClock ? startDigitalClock() : stopDigitalClock();
+
+    // Ẩn nút "Dùng thử miễn phí"
+const freeTrialBtn = document.querySelector('.sidebar-free-trial-button');
+if (freeTrialBtn) freeTrialBtn.style.display = 'none';
 
     // Legal Moves — dùng window bridge để giao tiếp với IIFE
     if (typeof window._martinSetLegalMoves === 'function') {
