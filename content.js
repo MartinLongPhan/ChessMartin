@@ -414,6 +414,10 @@ function applySettings(settings) {
     if (typeof window._martinSetMirrorBoard === 'function') {
         window._martinSetMirrorBoard(!!settings.mirrorBoard);
     }
+    if (typeof window._martinSetSafeDrop === 'function') {
+        window._martinSetSafeDrop(!!settings.safeDrop);
+    }
+
     applyTheme(settings.boardTheme || "default", settings.pieceSet || "default");
 
 }
@@ -498,7 +502,7 @@ chrome.runtime.onMessage.addListener((message) => {
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
     ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
-        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet","tacticalMap","mirrorBoard"],
+        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet","tacticalMap","mirrorBoard","safeDrop"],
     (data) => { currentSettings = data; applySettings(currentSettings); }
 );
 
@@ -2314,5 +2318,346 @@ function applyTheme(boardValue, pieceValue) {
     // ===== INIT =====
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startFenObserver);
     else startFenObserver();
+
+})();
+
+
+// ===== SAFE-DROP INDICATOR — Cảnh báo khi đang rê quân =====
+(function () {
+
+    let enabled = false;
+    window._martinSetSafeDrop = function (val) {
+        enabled = !!val;
+        if (!enabled) clearDropOverlay();
+    };
+
+    // ===== STYLE =====
+    const style = document.createElement('style');
+    style.textContent = `
+        #martin-drop-overlay {
+            position: fixed;
+            pointer-events: none;
+            z-index: 99998;
+            top: 0; left: 0;
+            width: 0; height: 0;
+            overflow: visible;
+        }
+
+        /* Ô đang hover khi rê quân */
+        #martin-drop-sq {
+            position: fixed;
+            pointer-events: none;
+            border-radius: 2px;
+            transition: left 0.04s, top 0.04s;
+        }
+
+        /* SAFE — xanh lá: ô an toàn, không bị tấn công */
+        #martin-drop-sq.safe {
+            background: rgba(34, 197, 94, 0.18);
+            border: 2px solid rgba(34, 197, 94, 0.85);
+            box-shadow: inset 0 0 12px rgba(34,197,94,0.15), 0 0 8px rgba(34,197,94,0.3);
+        }
+
+        /* WARN — cam: bị tấn công nhưng có quân bảo vệ (có thể đi được nhưng rủi ro) */
+        #martin-drop-sq.warn {
+            background: rgba(251, 146, 60, 0.2);
+            border: 2px solid rgba(251, 146, 60, 0.9);
+            box-shadow: inset 0 0 12px rgba(251,146,60,0.2), 0 0 10px rgba(251,146,60,0.4);
+            animation: martin-drop-warn-pulse 0.6s ease-in-out infinite;
+        }
+
+        /* DANGER — đỏ: bị tấn công, ít hoặc không có quân bảo vệ (blunder ngay!) */
+        #martin-drop-sq.danger {
+            background: rgba(239, 68, 68, 0.22);
+            border: 2px solid rgba(239, 68, 68, 1);
+            box-shadow: inset 0 0 14px rgba(239,68,68,0.25), 0 0 16px rgba(239,68,68,0.5);
+            animation: martin-drop-danger-pulse 0.35s ease-in-out infinite;
+        }
+
+        @keyframes martin-drop-warn-pulse {
+            0%,100% { opacity: 0.8; }
+            50%      { opacity: 1; }
+        }
+        @keyframes martin-drop-danger-pulse {
+            0%,100% { opacity: 0.75; box-shadow: inset 0 0 14px rgba(239,68,68,0.25), 0 0 16px rgba(239,68,68,0.5); }
+            50%      { opacity: 1;    box-shadow: inset 0 0 20px rgba(239,68,68,0.4), 0 0 28px rgba(239,68,68,0.8); }
+        }
+
+        /* Quân đang cầm mờ đi khi vào vùng nguy hiểm */
+        .martin-drag-warn .piece.dragging,
+        .martin-drag-warn .piece[class*="drag"] {
+            opacity: 0.55 !important;
+            filter: saturate(0.4) !important;
+        }
+        .martin-drag-danger .piece.dragging,
+        .martin-drag-danger .piece[class*="drag"] {
+            opacity: 0.4 !important;
+            filter: saturate(0.2) sepia(0.5) !important;
+        }
+
+        /* Tooltip nhỏ hiện lý do */
+        #martin-drop-tooltip {
+            position: fixed;
+            pointer-events: none;
+            z-index: 99999;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 4px 8px;
+            border-radius: 5px;
+            white-space: nowrap;
+            transform: translate(-50%, -130%);
+            transition: left 0.04s, top 0.04s, opacity 0.15s;
+            opacity: 0;
+        }
+        #martin-drop-tooltip.visible { opacity: 1; }
+        #martin-drop-tooltip.safe    { background: rgba(21,128,61,0.92);  color: #bbf7d0; border: 1px solid rgba(34,197,94,0.5); }
+        #martin-drop-tooltip.warn    { background: rgba(154,52,18,0.92);  color: #fed7aa; border: 1px solid rgba(251,146,60,0.5); }
+        #martin-drop-tooltip.danger  { background: rgba(127,29,29,0.95);  color: #fecaca; border: 1px solid rgba(239,68,68,0.6); }
+    `;
+    document.head.appendChild(style);
+
+    // ===== DOM =====
+    const overlayEl = document.createElement('div');
+    overlayEl.id = 'martin-drop-overlay';
+
+    const dropSqEl = document.createElement('div');
+    dropSqEl.id = 'martin-drop-sq';
+
+    const tooltipEl = document.createElement('div');
+    tooltipEl.id = 'martin-drop-tooltip';
+
+    overlayEl.appendChild(dropSqEl);
+    overlayEl.appendChild(tooltipEl);
+    document.body.appendChild(overlayEl);
+
+    // ===== STATE =====
+    let isDragging = false;
+    let dragPiece  = null;   // { color: 'w'|'b', type: 'p'|'n'|'b'|'r'|'q'|'k', sq: 'e2' }
+    let lastHoverSq = null;
+
+    // ===== HELPERS =====
+    function getBoardRect() {
+        const boardEl = document.querySelector('wc-chess-board');
+        if (!boardEl) return null;
+        return (boardEl.querySelector('.board') || boardEl).getBoundingClientRect();
+    }
+
+    function getFlipped() {
+        return document.querySelector('wc-chess-board')?.classList.contains('flipped') ?? false;
+    }
+
+    function getMyColor() {
+        return getFlipped() ? 'b' : 'w';
+    }
+
+    function clientToSq(clientX, clientY) {
+        const rect = getBoardRect();
+        if (!rect) return null;
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+        const cell = rect.width / 8;
+        const fi = Math.floor((clientX - rect.left) / cell);
+        const ri = Math.floor((clientY - rect.top)  / cell);
+        const flipped = getFlipped();
+        const file = flipped ? 7 - fi : fi;
+        const rank = flipped ? ri + 1 : 8 - ri;
+        if (file < 0 || file > 7 || rank < 1 || rank > 8) return null;
+        return String.fromCharCode(97 + file) + rank;
+    }
+
+    function sqToPixel(sq) {
+        const rect = getBoardRect();
+        if (!rect) return null;
+        const flipped = getFlipped();
+        const f = sq.charCodeAt(0) - 97;
+        const r = parseInt(sq[1]) - 1;
+        const cell = rect.width / 8;
+        const col = flipped ? 7 - f : f;
+        const row = flipped ? r : 7 - r;
+        return { x: rect.left + col * cell, y: rect.top + row * cell, cell };
+    }
+
+    function getPieceAtSq(sq) {
+        const file = sq.charCodeAt(0) - 96;
+        const rank  = sq[1];
+        const el = document.querySelector(`.piece.square-${file}${rank}`);
+        if (!el) return null;
+        const m = el.className.match(/\b([wb][pnbrqk])\b/);
+        return m ? m[1] : null;
+    }
+
+    function getFen() {
+        return typeof window.martinGetFen === 'function' ? window.martinGetFen() : null;
+    }
+
+    // ===== CORE: đánh giá độ an toàn của ô drop =====
+    // Trả về: { level: 'safe'|'warn'|'danger', reason: string }
+    function evaluateDrop(fromSq, toSq, fenRaw) {
+        if (typeof Chess === 'undefined' || !fenRaw) return null;
+
+        const myColor  = getMyColor();
+        const oppColor = myColor === 'w' ? 'b' : 'w';
+
+        let ch;
+        try { ch = new Chess(fenRaw); }
+        catch (e) { return null; }
+
+        // Kiểm tra nước đi có hợp lệ không
+        const parts = fenRaw.split(' ');
+        parts[1] = myColor;
+        let myChess;
+        try { myChess = new Chess(parts.slice(0, 6).join(' ')); }
+        catch (e) { return null; }
+
+        const legalMoves = myChess.moves({ square: fromSq, verbose: true });
+        const isLegal = legalMoves.some(m => m.to === toSq);
+        if (!isLegal) return null; // ô không hợp lệ → không hiện gì
+
+        // Thực hiện nước đi thử (simulate)
+        let simChess;
+        try { simChess = new Chess(parts.slice(0, 6).join(' ')); }
+        catch (e) { return null; }
+
+        // Thử đi nước đó
+        const moveResult = simChess.move({ from: fromSq, to: toSq, promotion: 'q' });
+        if (!moveResult) return null;
+
+        // Sau khi đi xong, đổi lượt sang đối thủ và kiểm tra họ có thể ăn quân mình ở toSq không
+        const afterFenParts = simChess.fen().split(' ');
+        afterFenParts[1] = oppColor;
+        let oppChess;
+        try { oppChess = new Chess(afterFenParts.slice(0, 6).join(' ')); }
+        catch (e) { return null; }
+
+        const oppMoves = oppChess.moves({ verbose: true });
+        const attackers = oppMoves.filter(m => m.to === toSq && m.captured);
+
+        if (attackers.length === 0) {
+            return { level: 'safe', reason: '✓ Safe square' };
+        }
+
+        // Có attackers — giờ đếm quân mình bảo vệ toSq sau khi đã đi
+        afterFenParts[1] = myColor;
+        let myDefChess;
+        try { myDefChess = new Chess(afterFenParts.slice(0, 6).join(' ')); }
+        catch (e) { return null; }
+
+        const myDefMoves = myDefChess.moves({ verbose: true });
+        const defenders  = myDefMoves.filter(m => m.to === toSq);
+
+        // Đánh giá đơn giản: so sánh số lượng
+        if (defenders.length >= attackers.length) {
+            return { level: 'warn', reason: `⚠ ${attackers.length} attacker${attackers.length > 1 ? 's' : ''}, ${defenders.length} defender${defenders.length > 1 ? 's' : ''}` };
+        } else {
+            return { level: 'danger', reason: `✗ Hanging! ${attackers.length} attacker${attackers.length > 1 ? 's' : ''}, only ${defenders.length} defender${defenders.length > 1 ? 's' : ''}` };
+        }
+    }
+
+    // ===== RENDER DROP INDICATOR =====
+    function renderDropIndicator(sq, evaluation, mouseX, mouseY) {
+        const pos = sqToPixel(sq);
+        if (!pos) { clearDropOverlay(); return; }
+
+        if (!evaluation) {
+            // Ô không hợp lệ → ẩn
+            dropSqEl.style.display = 'none';
+            tooltipEl.classList.remove('visible');
+            return;
+        }
+
+        const { level, reason } = evaluation;
+
+        // Vẽ ô
+        dropSqEl.style.display = 'block';
+        dropSqEl.style.left    = pos.x + 'px';
+        dropSqEl.style.top     = pos.y + 'px';
+        dropSqEl.style.width   = pos.cell + 'px';
+        dropSqEl.style.height  = pos.cell + 'px';
+        dropSqEl.className     = level; // 'safe' | 'warn' | 'danger'
+
+        // Tooltip
+        tooltipEl.textContent = reason;
+        tooltipEl.className   = `visible ${level}`;
+        tooltipEl.style.left  = mouseX + 'px';
+        tooltipEl.style.top   = mouseY + 'px';
+
+        // Làm mờ quân đang cầm nếu nguy hiểm
+        const board = document.querySelector('wc-chess-board');
+        if (board) {
+            board.classList.remove('martin-drag-warn', 'martin-drag-danger');
+            if (level === 'warn')   board.classList.add('martin-drag-warn');
+            if (level === 'danger') board.classList.add('martin-drag-danger');
+        }
+    }
+
+    function clearDropOverlay() {
+        dropSqEl.style.display = 'none';
+        tooltipEl.classList.remove('visible');
+        lastHoverSq = null;
+        isDragging  = false;
+        dragPiece   = null;
+        const board = document.querySelector('wc-chess-board');
+        board?.classList.remove('martin-drag-warn', 'martin-drag-danger');
+    }
+
+    // ===== EVENT LISTENERS =====
+    function onPointerDown(e) {
+        if (!enabled || e.button !== 0) return;
+
+        const sq = clientToSq(e.clientX, e.clientY);
+        if (!sq) return;
+
+        const pieceCode = getPieceAtSq(sq);
+        if (!pieceCode) return;
+
+        const myColor = getMyColor();
+        if (pieceCode[0] !== myColor) return; // không phải quân mình
+
+        isDragging = true;
+        dragPiece  = { code: pieceCode, sq };
+        lastHoverSq = null;
+    }
+
+    function onPointerMove(e) {
+        if (!enabled || !isDragging || !dragPiece) return;
+
+        const sq = clientToSq(e.clientX, e.clientY);
+        if (!sq || sq === dragPiece.sq) {
+            // Vẫn trên ô gốc hoặc ra ngoài bàn cờ
+            dropSqEl.style.display = 'none';
+            tooltipEl.classList.remove('visible');
+            return;
+        }
+
+        if (sq === lastHoverSq) return; // không tính lại nếu vẫn ô cũ
+        lastHoverSq = sq;
+
+        const fenRaw = getFen();
+        if (!fenRaw) return;
+
+        const evaluation = evaluateDrop(dragPiece.sq, sq, fenRaw);
+        renderDropIndicator(sq, evaluation, e.clientX, e.clientY);
+    }
+
+    function onPointerUp() {
+        if (!enabled) return;
+        clearDropOverlay();
+    }
+
+    // ===== INIT =====
+    function init() {
+        const board = document.querySelector('wc-chess-board');
+        if (!board) { setTimeout(init, 600); return; }
+
+        board.addEventListener('pointerdown',  onPointerDown);
+        document.addEventListener('pointermove', onPointerMove, { passive: true });
+        document.addEventListener('pointerup',   onPointerUp);
+
+        console.log('[MartinSafeDrop] Safe-Drop Indicator READY ✓');
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
 
 })();

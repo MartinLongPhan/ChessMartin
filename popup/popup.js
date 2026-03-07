@@ -13,7 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
         legalMoves: "legalMoves",
         opponentStats: "opponentStats",
         tacticalMap: "tacticalMap",
-        mirrorBoard: "mirrorBoard"
+        mirrorBoard: "mirrorBoard",
+        safeDrop: "safeDrop"
     };
 
     const elements = {};
