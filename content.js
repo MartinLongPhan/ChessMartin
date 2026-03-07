@@ -2577,220 +2577,172 @@ function applyTheme(boardValue, pieceValue) {
     }
 
     // ===== DRAW STYLED ARROW =====
+    // ===== SHAPE GIỐNG CHESS.COM =====
+    function drawChessComShape(ctx, x1, y1, x2, y2, cellSize) {
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 5) return;
+
+        const angle = Math.atan2(dy, dx);
+        const shaftW  = cellSize * 0.18;
+        const headW   = cellSize * 0.45;
+        const headLen = cellSize * 0.42;
+
+        // Rút ngắn điểm cuối để đầu mũi tên không ra ngoài ô
+        const ex = x2 - Math.cos(angle) * cellSize * 0.08;
+        const ey = y2 - Math.sin(angle) * cellSize * 0.08;
+
+        // Điểm bắt đầu phần đầu mũi tên
+        const hx = ex - Math.cos(angle) * headLen;
+        const hy = ey - Math.sin(angle) * headLen;
+
+        // Perpendicular vector
+        const px = -Math.sin(angle);
+        const py =  Math.cos(angle);
+
+        // Vẽ polygon: thân + đầu liền nhau
+        ctx.beginPath();
+        // Gốc thân (trái + phải)
+        ctx.moveTo(x1 + px * shaftW, y1 + py * shaftW);
+        ctx.lineTo(x1 - px * shaftW, y1 - py * shaftW);
+        // Đến chỗ nối thân-đầu (trái + phải theo shaftW)
+        ctx.lineTo(hx - px * shaftW, hy - py * shaftW);
+        // Tai trái đầu mũi tên
+        ctx.lineTo(hx - px * headW,  hy - py * headW);
+        // Mũi nhọn
+        ctx.lineTo(ex, ey);
+        // Tai phải
+        ctx.lineTo(hx + px * headW,  hy + py * headW);
+        // Về chỗ nối thân-đầu (phải)
+        ctx.lineTo(hx + px * shaftW, hy + py * shaftW);
+        ctx.closePath();
+    }
+
     function drawArrowStyled(ctx, x1, y1, x2, y2, cellSize, style, alpha, progress) {
         const dx = x2 - x1, dy = y2 - y1;
         const len = Math.sqrt(dx * dx + dy * dy);
         if (len < 5) return;
 
         const angle = Math.atan2(dy, dx);
-        const headLen  = cellSize * 0.38;
-        const headAngle = Math.PI / 6;
-        const shaftW   = cellSize * 0.13;
 
-        // Shorten end point so arrow tip sits inside target square
-        const ex = x2 - Math.cos(angle) * headLen * 0.3;
-        const ey = y2 - Math.sin(angle) * headLen * 0.3;
+        // Interpolate endpoint cho hiệu ứng "phóng"
+        const tx = x1 + (x2 - x1) * progress;
+        const ty = y1 + (y2 - y1) * progress;
 
         ctx.save();
         ctx.globalAlpha = alpha;
 
         if (style === 'neo_neon') {
-            drawNeonArrow(ctx, x1, y1, ex, ey, x2, y2, angle, headLen, headAngle, shaftW, cellSize, progress);
+            drawNeonArrow(ctx, x1, y1, tx, ty, cellSize, progress);
         } else if (style === 'cyber_hacker') {
-            drawHackerArrow(ctx, x1, y1, ex, ey, x2, y2, angle, headLen, headAngle, shaftW, cellSize, progress);
+            drawHackerArrow(ctx, x1, y1, tx, ty, cellSize, progress);
         } else if (style === 'fps_crosshair') {
-            drawFpsArrow(ctx, x1, y1, ex, ey, x2, y2, angle, headLen, headAngle, shaftW, cellSize, progress);
+            drawFpsArrow(ctx, x1, y1, tx, ty, cellSize, progress);
         }
 
         ctx.restore();
     }
 
-    // ===== NEO NEON (Tron) =====
-    function drawNeonArrow(ctx, x1, y1, ex, ey, tipX, tipY, angle, headLen, headAngle, shaftW, cell, progress) {
-        const color = '#00f7ff';
-        const glow  = '#00cfff';
-
-        // Outer glow layer
-        for (let i = 3; i >= 1; i--) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(0,247,255,${0.08 * i})`;
-            ctx.lineWidth = shaftW + i * 6;
-            ctx.lineCap = 'round';
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(ex, ey);
-            ctx.stroke();
-        }
-
-        // Shaft
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = shaftW;
-        ctx.lineCap = 'round';
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = 18;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(ex, ey);
-        ctx.stroke();
-
-        // White core
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-        ctx.lineWidth = shaftW * 0.3;
-        ctx.shadowBlur = 0;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(ex, ey);
-        ctx.stroke();
-
-        if (progress < 0.85) return;
-
-        // Arrowhead
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = shaftW * 1.2;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.moveTo(tipX - Math.cos(angle - headAngle) * headLen,
-                   tipY - Math.sin(angle - headAngle) * headLen);
-        ctx.lineTo(tipX, tipY);
-        ctx.lineTo(tipX - Math.cos(angle + headAngle) * headLen,
-                   tipY - Math.sin(angle + headAngle) * headLen);
-        ctx.stroke();
-
-        // Glow dot at tip
-        ctx.shadowBlur = 24;
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(tipX, tipY, shaftW * 0.7, 0, Math.PI * 2);
+    // ===== NEO NEON =====
+    function drawNeonArrow(ctx, x1, y1, x2, y2, cellSize, progress) {
+        // Outer glow
+        ctx.save();
+        ctx.shadowColor = '#00f7ff';
+        ctx.shadowBlur  = 20;
+        drawChessComShape(ctx, x1, y1, x2, y2, cellSize);
+        ctx.fillStyle = 'rgba(0, 247, 255, 0.25)';
         ctx.fill();
+        ctx.restore();
+
+        // Main fill
+        ctx.save();
+        ctx.shadowColor = '#00cfff';
+        ctx.shadowBlur  = 12;
+        drawChessComShape(ctx, x1, y1, x2, y2, cellSize);
+        ctx.fillStyle = 'rgba(0, 220, 255, 0.75)';
+        ctx.fill();
+        ctx.restore();
+
+        // White edge stroke
+        ctx.save();
+        drawChessComShape(ctx, x1, y1, x2, y2, cellSize);
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
     }
 
-    // ===== CYBER HACKER (Matrix) =====
-    function drawHackerArrow(ctx, x1, y1, ex, ey, tipX, tipY, angle, headLen, headAngle, shaftW, cell, progress) {
-        const color = '#39ff14';
-        const glow  = '#20c20e';
-
-        // Glitch outer
-        for (let i = 2; i >= 1; i--) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(57,255,20,${0.07 * i})`;
-            ctx.lineWidth = shaftW + i * 8;
-            ctx.lineCap = 'butt';
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(ex, ey);
-            ctx.stroke();
-        }
-
-        // Dashed shaft (digital feel)
+    // ===== CYBER HACKER =====
+    function drawHackerArrow(ctx, x1, y1, x2, y2, cellSize, progress) {
+        // Outer glow
         ctx.save();
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = shaftW * 0.5;
-        ctx.setLineDash([cell * 0.15, cell * 0.08]);
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = 14;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(ex, ey);
+        ctx.shadowColor = '#39ff14';
+        ctx.shadowBlur  = 18;
+        drawChessComShape(ctx, x1, y1, x2, y2, cellSize);
+        ctx.fillStyle = 'rgba(57, 255, 20, 0.2)';
+        ctx.fill();
+        ctx.restore();
+
+        // Main fill
+        ctx.save();
+        ctx.shadowColor = '#20c20e';
+        ctx.shadowBlur  = 10;
+        drawChessComShape(ctx, x1, y1, x2, y2, cellSize);
+        ctx.fillStyle = 'rgba(40, 220, 10, 0.72)';
+        ctx.fill();
+        ctx.restore();
+
+        // Glitch stroke đứt đoạn
+        ctx.save();
+        drawChessComShape(ctx, x1, y1, x2, y2, cellSize);
+        ctx.strokeStyle = 'rgba(180,255,100,0.5)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.restore();
-
-        // Solid thin core
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = shaftW * 0.25;
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = 8;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(ex, ey);
-        ctx.stroke();
-
-        if (progress < 0.85) return;
-
-        // Angular bracket-style head (< >)
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = 16;
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = shaftW;
-        ctx.lineCap = 'square';
-        ctx.lineJoin = 'miter';
-        ctx.moveTo(tipX - Math.cos(angle - headAngle) * headLen,
-                   tipY - Math.sin(angle - headAngle) * headLen);
-        ctx.lineTo(tipX, tipY);
-        ctx.lineTo(tipX - Math.cos(angle + headAngle) * headLen,
-                   tipY - Math.sin(angle + headAngle) * headLen);
-        ctx.stroke();
-
-        // Origin dot
-        ctx.shadowBlur = 10;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(x1, y1, shaftW * 0.9, 0, Math.PI * 2);
-        ctx.fill();
     }
 
-    // ===== FPS CROSSHAIR (Valorant) =====
-    function drawFpsArrow(ctx, x1, y1, ex, ey, tipX, tipY, angle, headLen, headAngle, shaftW, cell, progress) {
-        const color = '#ff3c3c';
-        const glow  = '#ff0000';
-
+    // ===== FPS CROSSHAIR =====
+    function drawFpsArrow(ctx, x1, y1, x2, y2, cellSize, progress) {
         // Outer glow
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(255,60,60,0.15)`;
-        ctx.lineWidth = shaftW + 10;
-        ctx.lineCap = 'round';
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(ex, ey);
-        ctx.stroke();
-
-        // Shaft
-        ctx.beginPath();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = shaftW * 0.7;
-        ctx.lineCap = 'round';
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = 12;
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(ex, ey);
-        ctx.stroke();
-
-        if (progress < 0.85) return;
-
-        // Filled triangle head
-        ctx.shadowColor = glow;
-        ctx.shadowBlur = 18;
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(tipX, tipY);
-        ctx.lineTo(tipX - Math.cos(angle - headAngle) * headLen,
-                   tipY - Math.sin(angle - headAngle) * headLen);
-        ctx.lineTo(tipX - Math.cos(angle + headAngle) * headLen,
-                   tipY - Math.sin(angle + headAngle) * headLen);
-        ctx.closePath();
+        ctx.save();
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur  = 18;
+        drawChessComShape(ctx, x1, y1, x2, y2, cellSize);
+        ctx.fillStyle = 'rgba(255, 40, 40, 0.22)';
         ctx.fill();
+        ctx.restore();
 
-        // Crosshair at tip
-        const cr = cell * 0.12;
-        const cg = cell * 0.06;
-        ctx.shadowBlur = 14;
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        // Horizontal
-        ctx.beginPath();
-        ctx.moveTo(tipX - cr, tipY); ctx.lineTo(tipX - cg, tipY);
-        ctx.moveTo(tipX + cg, tipY); ctx.lineTo(tipX + cr, tipY);
-        // Vertical
-        ctx.moveTo(tipX, tipY - cr); ctx.lineTo(tipX, tipY - cg);
-        ctx.moveTo(tipX, tipY + cg); ctx.lineTo(tipX, tipY + cr);
-        ctx.stroke();
-
-        // Center dot
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(tipX, tipY, 2, 0, Math.PI * 2);
+        // Main fill
+        ctx.save();
+        ctx.shadowColor = '#ff0000';
+        ctx.shadowBlur  = 10;
+        drawChessComShape(ctx, x1, y1, x2, y2, cellSize);
+        ctx.fillStyle = 'rgba(220, 30, 30, 0.75)';
         ctx.fill();
+        ctx.restore();
+
+        // Crosshair ở đầu mũi tên nếu đã phóng đến nơi
+        if (progress >= 0.95) {
+            const angle  = Math.atan2(y2 - y1, x2 - x1);
+            const tipX   = x2 - Math.cos(angle) * cellSize * 0.08;
+            const tipY   = y2 - Math.sin(angle) * cellSize * 0.08;
+            const cr = cellSize * 0.1;
+            const cg = cellSize * 0.04;
+            ctx.save();
+            ctx.shadowColor = '#ff4444';
+            ctx.shadowBlur  = 10;
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+            ctx.lineWidth   = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(tipX - cr, tipY); ctx.lineTo(tipX - cg, tipY);
+            ctx.moveTo(tipX + cg, tipY); ctx.lineTo(tipX + cr, tipY);
+            ctx.moveTo(tipX, tipY - cr); ctx.lineTo(tipX, tipY - cg);
+            ctx.moveTo(tipX, tipY + cg); ctx.lineTo(tipX, tipY + cr);
+            ctx.stroke();
+            ctx.restore();
+        }
     }
 
     // ===== MOUSE EVENTS =====
