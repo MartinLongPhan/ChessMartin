@@ -2298,8 +2298,10 @@ function applyTheme(boardValue, pieceValue) {
         mirrorEl.querySelector('#mmb-close-btn').addEventListener('click', () => {
             enabled = false;
             removeMirrorBoard();
-            // Sync setting off
+            // Lưu storage
             chrome.storage.sync.set({ mirrorBoard: false });
+            // Notify chính content script này (để currentSettings sync)
+            currentSettings.mirrorBoard = false;
         });
 
         // ===== TOGGLE MINIMIZE =====

@@ -72,4 +72,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     [boardTheme, pieceSet].forEach(el => el.addEventListener("change", updateSettings));
+
+    
 });
