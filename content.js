@@ -421,7 +421,9 @@ function applySettings(settings) {
     if (typeof window._martinSetSafeDrop === 'function') {
         window._martinSetSafeDrop(!!settings.safeDrop);
     }
-
+    if (typeof window._martinSetArrowStyle === 'function') {
+        window._martinSetArrowStyle(settings.arrowStyle || 'default');
+    }
     applyTheme(settings.boardTheme || "default", settings.pieceSet || "default");
 
 }
@@ -507,7 +509,7 @@ chrome.runtime.onMessage.addListener((message) => {
 // ===== LOAD SETTINGS ON PAGE LOAD =====
 chrome.storage.sync.get(
     ["largerClock", "hideOpponent", "cleanUI", "hideLogo", "hideAds",
-        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet","tacticalMap","mirrorBoard","safeDrop"],
+        "hideNotifications", "lowTimeAlert", "hideGameMessages", "digitalClock", "legalMoves", "opponentStats","boardTheme", "pieceSet","tacticalMap","mirrorBoard","safeDrop","arrowStyle"],
     (data) => { currentSettings = data; applySettings(currentSettings); }
 );
 
@@ -2386,5 +2388,479 @@ function applyTheme(boardValue, pieceValue) {
     // ===== INIT =====
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startFenObserver);
     else startFenObserver();
+
+})();
+
+
+// ===== GAMER ARROWS — Neo Neon / Cyber Hacker / FPS Crosshair =====
+(function () {
+
+    let arrowStyle = 'default'; // default | neo_neon | cyber_hacker | fps_crosshair
+    let arrows = []; // { from, to, progress, blinkCount, state }
+    let isDrawing = false;
+    let drawStart = null;
+    let animFrameId = null;
+    let overlayCanvas = null;
+    let overlayCtx = null;
+
+    // ===== WINDOW BRIDGE =====
+    window._martinSetArrowStyle = function (val) {
+        arrowStyle = val || 'default';
+        if (arrowStyle === 'default') {
+            hideOverlay();
+            showChessComArrows();
+        } else {
+            showOverlay();
+            hideChessComArrows();
+            startRenderLoop();
+        }
+    };
+
+    // ===== HIDE/SHOW chess.com arrows =====
+    let arrowStyleEl = null;
+    function hideChessComArrows() {
+        if (!arrowStyleEl) {
+            arrowStyleEl = document.createElement('style');
+            arrowStyleEl.id = 'martin-arrow-hide';
+            document.head.appendChild(arrowStyleEl);
+        }
+        arrowStyleEl.textContent = `
+            wc-chess-board .arrows, 
+            wc-chess-board .arrow,
+            wc-chess-board svg.arrows-layer,
+            wc-chess-board [class*="arrow"] { 
+                display: none !important; 
+                opacity: 0 !important;
+            }
+        `;
+    }
+    function showChessComArrows() {
+        if (arrowStyleEl) arrowStyleEl.textContent = '';
+    }
+
+    // ===== OVERLAY CANVAS =====
+    function createOverlay() {
+        if (overlayCanvas?.isConnected) return;
+        overlayCanvas = document.createElement('canvas');
+        overlayCanvas.id = 'martin-arrow-canvas';
+        overlayCanvas.style.cssText = `
+            position: fixed;
+            top: 0; left: 0;
+            pointer-events: none;
+            z-index: 99995;
+        `;
+        document.body.appendChild(overlayCanvas);
+        overlayCtx = overlayCanvas.getContext('2d');
+        resizeOverlay();
+        window.addEventListener('resize', resizeOverlay);
+    }
+
+    function resizeOverlay() {
+        if (!overlayCanvas) return;
+        overlayCanvas.width  = window.innerWidth  * (window.devicePixelRatio || 1);
+        overlayCanvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+        overlayCanvas.style.width  = window.innerWidth  + 'px';
+        overlayCanvas.style.height = window.innerHeight + 'px';
+    }
+
+    function showOverlay() { createOverlay(); if (overlayCanvas) overlayCanvas.style.display = 'block'; }
+    function hideOverlay() {
+        if (overlayCanvas) { overlayCanvas.style.display = 'none'; }
+        arrows = [];
+        cancelAnimationFrame(animFrameId);
+    }
+
+    // ===== BOARD HELPERS =====
+    function getBoardRect() {
+        const boardEl = document.querySelector('wc-chess-board');
+        if (!boardEl) return null;
+        const inner = boardEl.querySelector('.board');
+        return (inner || boardEl).getBoundingClientRect();
+    }
+
+    function getFlipped() {
+        return document.querySelector('wc-chess-board')?.classList.contains('flipped') ?? false;
+    }
+
+    function sqFromPointer(e) {
+        const rect = getBoardRect();
+        if (!rect) return null;
+        if (e.clientX < rect.left || e.clientX > rect.right ||
+            e.clientY < rect.top  || e.clientY > rect.bottom) return null;
+        const cell = rect.width / 8;
+        const fi = Math.floor((e.clientX - rect.left) / cell);
+        const ri = Math.floor((e.clientY - rect.top)  / cell);
+        const flipped = getFlipped();
+        const file = flipped ? 7 - fi : fi;
+        const rank = flipped ? ri + 1 : 8 - ri;
+        if (file < 0 || file > 7 || rank < 1 || rank > 8) return null;
+        return String.fromCharCode(97 + file) + rank;
+    }
+
+    function sqToCenter(sq) {
+        const rect = getBoardRect();
+        if (!rect) return null;
+        const f = sq.charCodeAt(0) - 97;
+        const r = parseInt(sq[1]) - 1;
+        const cell = rect.width / 8;
+        const flipped = getFlipped();
+        const col = flipped ? 7 - f : f;
+        const row = flipped ? r : 7 - r;
+        return {
+            x: rect.left + col * cell + cell / 2,
+            y: rect.top  + row * cell + cell / 2,
+            cell
+        };
+    }
+
+    // ===== RENDER LOOP =====
+    function startRenderLoop() {
+        cancelAnimationFrame(animFrameId);
+        function loop() {
+            if (arrowStyle === 'default') return;
+            render();
+            animFrameId = requestAnimationFrame(loop);
+        }
+        animFrameId = requestAnimationFrame(loop);
+    }
+
+    function render() {
+        if (!overlayCtx || !overlayCanvas) return;
+        const dpr = window.devicePixelRatio || 1;
+        const W = overlayCanvas.width;
+        const H = overlayCanvas.height;
+        overlayCtx.clearRect(0, 0, W, H);
+        overlayCtx.save();
+        overlayCtx.scale(dpr, dpr);
+
+        // Draw preview arrow while dragging
+        if (isDrawing && drawStart) {
+            const rect = getBoardRect();
+            if (rect) {
+                const from = sqToCenter(drawStart);
+                if (from && window._martinArrowMousePos) {
+                    drawArrowStyled(overlayCtx, from.x, from.y,
+                        window._martinArrowMousePos.x,
+                        window._martinArrowMousePos.y,
+                        from.cell, arrowStyle, 0.4, 1.0);
+                }
+            }
+        }
+
+        // Draw completed arrows
+        const now = performance.now();
+        arrows.forEach(arrow => {
+            const from = sqToCenter(arrow.from);
+            const to   = sqToCenter(arrow.to);
+            if (!from || !to) return;
+
+            // Animate progress (shoot from origin)
+            if (arrow.progress < 1) arrow.progress = Math.min(1, arrow.progress + 0.08);
+
+            // Blink logic
+            let alpha = 1;
+
+            // Fade in
+            if (arrow.fadeAlpha < 1) arrow.fadeAlpha = Math.min(1, arrow.fadeAlpha + 0.07);
+
+            const finalAlpha = alpha * arrow.fadeAlpha;
+
+            // Interpolate end point for "shoot" effect
+            const tx = from.x + (to.x - from.x) * arrow.progress;
+            const ty = from.y + (to.y - from.y) * arrow.progress;
+
+            drawArrowStyled(overlayCtx, from.x, from.y, tx, ty, from.cell, arrowStyle, finalAlpha, arrow.progress);
+
+        });
+
+        overlayCtx.restore();
+    }
+
+    // ===== DRAW STYLED ARROW =====
+    function drawArrowStyled(ctx, x1, y1, x2, y2, cellSize, style, alpha, progress) {
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 5) return;
+
+        const angle = Math.atan2(dy, dx);
+        const headLen  = cellSize * 0.38;
+        const headAngle = Math.PI / 6;
+        const shaftW   = cellSize * 0.13;
+
+        // Shorten end point so arrow tip sits inside target square
+        const ex = x2 - Math.cos(angle) * headLen * 0.3;
+        const ey = y2 - Math.sin(angle) * headLen * 0.3;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+
+        if (style === 'neo_neon') {
+            drawNeonArrow(ctx, x1, y1, ex, ey, x2, y2, angle, headLen, headAngle, shaftW, cellSize, progress);
+        } else if (style === 'cyber_hacker') {
+            drawHackerArrow(ctx, x1, y1, ex, ey, x2, y2, angle, headLen, headAngle, shaftW, cellSize, progress);
+        } else if (style === 'fps_crosshair') {
+            drawFpsArrow(ctx, x1, y1, ex, ey, x2, y2, angle, headLen, headAngle, shaftW, cellSize, progress);
+        }
+
+        ctx.restore();
+    }
+
+    // ===== NEO NEON (Tron) =====
+    function drawNeonArrow(ctx, x1, y1, ex, ey, tipX, tipY, angle, headLen, headAngle, shaftW, cell, progress) {
+        const color = '#00f7ff';
+        const glow  = '#00cfff';
+
+        // Outer glow layer
+        for (let i = 3; i >= 1; i--) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(0,247,255,${0.08 * i})`;
+            ctx.lineWidth = shaftW + i * 6;
+            ctx.lineCap = 'round';
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+        }
+
+        // Shaft
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = shaftW;
+        ctx.lineCap = 'round';
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 18;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        // White core
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = shaftW * 0.3;
+        ctx.shadowBlur = 0;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        if (progress < 0.85) return;
+
+        // Arrowhead
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 20;
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = shaftW * 1.2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.moveTo(tipX - Math.cos(angle - headAngle) * headLen,
+                   tipY - Math.sin(angle - headAngle) * headLen);
+        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(tipX - Math.cos(angle + headAngle) * headLen,
+                   tipY - Math.sin(angle + headAngle) * headLen);
+        ctx.stroke();
+
+        // Glow dot at tip
+        ctx.shadowBlur = 24;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, shaftW * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // ===== CYBER HACKER (Matrix) =====
+    function drawHackerArrow(ctx, x1, y1, ex, ey, tipX, tipY, angle, headLen, headAngle, shaftW, cell, progress) {
+        const color = '#39ff14';
+        const glow  = '#20c20e';
+
+        // Glitch outer
+        for (let i = 2; i >= 1; i--) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(57,255,20,${0.07 * i})`;
+            ctx.lineWidth = shaftW + i * 8;
+            ctx.lineCap = 'butt';
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+        }
+
+        // Dashed shaft (digital feel)
+        ctx.save();
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = shaftW * 0.5;
+        ctx.setLineDash([cell * 0.15, cell * 0.08]);
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 14;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        // Solid thin core
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = shaftW * 0.25;
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 8;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        if (progress < 0.85) return;
+
+        // Angular bracket-style head (< >)
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = shaftW;
+        ctx.lineCap = 'square';
+        ctx.lineJoin = 'miter';
+        ctx.moveTo(tipX - Math.cos(angle - headAngle) * headLen,
+                   tipY - Math.sin(angle - headAngle) * headLen);
+        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(tipX - Math.cos(angle + headAngle) * headLen,
+                   tipY - Math.sin(angle + headAngle) * headLen);
+        ctx.stroke();
+
+        // Origin dot
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x1, y1, shaftW * 0.9, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // ===== FPS CROSSHAIR (Valorant) =====
+    function drawFpsArrow(ctx, x1, y1, ex, ey, tipX, tipY, angle, headLen, headAngle, shaftW, cell, progress) {
+        const color = '#ff3c3c';
+        const glow  = '#ff0000';
+
+        // Outer glow
+        ctx.beginPath();
+        ctx.strokeStyle = `rgba(255,60,60,0.15)`;
+        ctx.lineWidth = shaftW + 10;
+        ctx.lineCap = 'round';
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        // Shaft
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = shaftW * 0.7;
+        ctx.lineCap = 'round';
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 12;
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        if (progress < 0.85) return;
+
+        // Filled triangle head
+        ctx.shadowColor = glow;
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(tipX - Math.cos(angle - headAngle) * headLen,
+                   tipY - Math.sin(angle - headAngle) * headLen);
+        ctx.lineTo(tipX - Math.cos(angle + headAngle) * headLen,
+                   tipY - Math.sin(angle + headAngle) * headLen);
+        ctx.closePath();
+        ctx.fill();
+
+        // Crosshair at tip
+        const cr = cell * 0.12;
+        const cg = cell * 0.06;
+        ctx.shadowBlur = 14;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        // Horizontal
+        ctx.beginPath();
+        ctx.moveTo(tipX - cr, tipY); ctx.lineTo(tipX - cg, tipY);
+        ctx.moveTo(tipX + cg, tipY); ctx.lineTo(tipX + cr, tipY);
+        // Vertical
+        ctx.moveTo(tipX, tipY - cr); ctx.lineTo(tipX, tipY - cg);
+        ctx.moveTo(tipX, tipY + cg); ctx.lineTo(tipX, tipY + cr);
+        ctx.stroke();
+
+        // Center dot
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // ===== MOUSE EVENTS =====
+    // ===== MOUSE EVENTS =====
+    function initMouseEvents() {
+        const boardEl = document.querySelector('wc-chess-board');
+        if (!boardEl) { setTimeout(initMouseEvents, 600); return; }
+
+        boardEl.addEventListener('mousedown', (e) => {
+            if (e.button !== 2) return;
+            if (arrowStyle === 'default') return;
+            e.preventDefault();
+            isDrawing = true;
+            drawStart = sqFromPointer(e);
+            window._martinArrowMousePos = { x: e.clientX, y: e.clientY };
+        });
+
+        boardEl.addEventListener('mousemove', (e) => {
+            window._martinArrowMousePos = { x: e.clientX, y: e.clientY };
+        });
+
+        boardEl.addEventListener('mouseup', (e) => {
+            if (e.button !== 2) return;
+            if (!isDrawing || !drawStart || arrowStyle === 'default') {
+                isDrawing = false; drawStart = null; return;
+            }
+            isDrawing = false;
+            const drawEnd = sqFromPointer(e);
+
+            if (!drawEnd || drawEnd === drawStart) {
+                drawStart = null; return;
+            }
+
+            // Toggle: same arrow = remove it
+            const existing = arrows.findIndex(a => a.from === drawStart && a.to === drawEnd);
+            if (existing >= 0) {
+                arrows.splice(existing, 1);
+            } else {
+                arrows.push({
+                    from: drawStart, to: drawEnd,
+                    progress: 0,
+                    fadeAlpha: 0,
+                    state: 'new',
+                    blinkStart: 0
+                });
+            }
+
+            // 👈 Đánh dấu vừa vẽ xong để contextmenu không xóa ngay
+            window._martinJustDrewArrow = true;
+            setTimeout(() => { window._martinJustDrewArrow = false; }, 300);
+
+            drawStart = null;
+        });
+
+        // Right-click trên ô trống = clear all, nhưng KHÔNG clear nếu vừa vẽ xong
+        boardEl.addEventListener('contextmenu', (e) => {
+            if (arrowStyle === 'default') return;
+            e.preventDefault();
+            if (window._martinJustDrewArrow) return; // 👈 bỏ qua
+            if (!isDrawing) arrows = [];
+        });
+
+        // Clear arrows on move
+        const moveObs = new MutationObserver(() => { arrows = []; });
+        moveObs.observe(boardEl, { attributes: true, attributeFilter: ['fen', 'data-fen'] });
+
+        console.log('[MartinArrows] Gamer Arrows READY ✓');
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMouseEvents);
+    else initMouseEvents();
 
 })();

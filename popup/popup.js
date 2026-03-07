@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // Tạo một bản đồ (Map) giữa ID trong HTML và Key trong Storage
     const controls = {
         clockToggle: "largerClock",
         hideOpponentToggle: "hideOpponent",
@@ -20,26 +19,27 @@ document.addEventListener("DOMContentLoaded", () => {
     const elements = {};
     const storageKeys = Object.values(controls);
 
-    // Tự động lấy Element và gán sự kiện
     Object.keys(controls).forEach(id => {
         elements[id] = document.getElementById(id);
     });
 
     const boardTheme = document.getElementById("boardTheme");
     const pieceSet   = document.getElementById("pieceSet");
+    const arrowStyle = document.getElementById("arrowStyle"); // 👈 thêm
 
     // ===== LOAD SETTINGS =====
-    chrome.storage.sync.get([...storageKeys, "boardTheme", "pieceSet"], (data) => {
-    Object.keys(controls).forEach(id => {
-        const storageKey = controls[id];
-        if (elements[id]) {
-            elements[id].checked = data[storageKey] || false;
-        }
-    });
+    chrome.storage.sync.get([...storageKeys, "boardTheme", "pieceSet", "arrowStyle"], (data) => {
+        Object.keys(controls).forEach(id => {
+            const storageKey = controls[id];
+            if (elements[id]) {
+                elements[id].checked = data[storageKey] || false;
+            }
+        });
 
-    boardTheme.value = data.boardTheme || "default";
-    pieceSet.value   = data.pieceSet   || "default";
-});
+        boardTheme.value = data.boardTheme || "default";
+        pieceSet.value   = data.pieceSet   || "default";
+        if (arrowStyle) arrowStyle.value = data.arrowStyle || "default"; // 👈 thêm
+    });
 
     // ===== UPDATE SETTINGS =====
     function updateSettings() {
@@ -49,18 +49,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         settings.boardTheme = boardTheme.value;
         settings.pieceSet   = pieceSet.value;
+        settings.arrowStyle = arrowStyle?.value || "default"; // 👈 thêm
 
         chrome.storage.sync.set(settings);
 
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
             if (!tabs[0]?.id) return;
-            
-            // Kiểm tra tab có phải chess.com không
             const url = tabs[0].url || '';
             if (!url.includes('chess.com')) return;
-        
             chrome.tabs.sendMessage(tabs[0].id, { action: "updateSettings", ...settings }, (response) => {
-                // Bỏ qua lỗi nếu content script chưa sẵn sàng
                 if (chrome.runtime.lastError) return;
             });
         });
@@ -70,8 +67,19 @@ document.addEventListener("DOMContentLoaded", () => {
     Object.values(elements).forEach(el => {
         if (el) el.addEventListener("change", updateSettings);
     });
-
     [boardTheme, pieceSet].forEach(el => el.addEventListener("change", updateSettings));
+    if (arrowStyle) arrowStyle.addEventListener("change", updateSettings); // 👈 thêm
 
-    
+    // Lắng nghe storage thay đổi từ bên ngoài
+    chrome.storage.onChanged.addListener((changes) => {
+        Object.keys(controls).forEach(id => {
+            const storageKey = controls[id];
+            if (changes[storageKey] !== undefined && elements[id]) {
+                elements[id].checked = changes[storageKey].newValue || false;
+            }
+        });
+        if (changes.arrowStyle !== undefined && arrowStyle) {
+            arrowStyle.value = changes.arrowStyle.newValue || "default"; // 👈 thêm
+        }
+    });
 });
