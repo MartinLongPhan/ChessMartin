@@ -10,7 +10,8 @@
     ],
     "host_permissions": [
         "https://www.chess.com/*",
-        "https://api.chess.com/*" 
+        "https://api.chess.com/*" ,
+        "https://lichess1.org/*"
     ],
     "action": {
         "default_popup": "popup/popup.html"
@@ -21,7 +22,8 @@
                 "assets/happy-face.png"
             ],
             "matches": [
-                "*://www.chess.com/*"
+                "*://www.chess.com/*",
+                "*://lichess1.org/*"
             ]
         }
     ],

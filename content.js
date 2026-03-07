@@ -1663,6 +1663,7 @@ function applyTheme(boardValue, pieceValue) {
         return null;
     }
 
+    
     function getMyColor() {
         // Đọc màu người chơi từ DOM
         const myClockSide = document.querySelector('.clock-bottom');
@@ -1671,7 +1672,8 @@ function applyTheme(boardValue, pieceValue) {
         const flipped = board?.classList.contains('flipped');
         return flipped ? 'b' : 'w';
     }
-
+    
+    
     function analyzeTactical() {
         if (!enabled) return;
 
@@ -1979,25 +1981,35 @@ function applyTheme(boardValue, pieceValue) {
     document.head.appendChild(style);
 
     // ===== PIECE SYMBOLS (Unicode) =====
-    const PIECE_UNICODE = {
-        'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
-        'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟',
+    const PIECE_CODES = {
+        'K':'wk','Q':'wq','R':'wr','B':'wb','N':'wn','P':'wp',
+        'k':'bk','q':'bq','r':'br','b':'bb','n':'bn','p':'bp'
     };
-
-    // ===== PARSE FEN TO BOARD ARRAY =====
-    function parseFen(fen) {
-        const piecePart = fen.split(' ')[0];
-        const rows = piecePart.split('/');
-        const board = [];
-        for (const row of rows) {
-            const cells = [];
-            for (const ch of row) {
-                if (isNaN(ch)) { cells.push(ch); }
-                else { for (let i = 0; i < parseInt(ch); i++) cells.push(null); }
-            }
-            board.push(cells);
-        }
-        return board; // board[0] = rank 8, board[7] = rank 1
+    const PIECE_IMGS = {};
+    let piecesLoaded = false;
+    
+    function preloadPieces() {
+        return Promise.all(
+            Object.entries(PIECE_CODES).map(([key, code]) =>
+                new Promise(resolve => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload  = () => { 
+                        console.log('[Mirror] Loaded:', code);
+                        PIECE_IMGS[key] = img; 
+                        resolve(); 
+                    };
+                    img.onerror = (e) => { 
+                        console.warn('[Mirror] Failed:', code, e);
+                        resolve(); // vẫn resolve để không block
+                    };
+                    img.src = `https://www.chess.com/chess-themes/pieces/neo/150/${code}.png`;
+                })
+            )
+        ).then(() => { 
+            piecesLoaded = true; 
+            console.log('[Mirror] Pieces loaded:', Object.keys(PIECE_IMGS).length, '/ 12');
+        });
     }
 
     // ===== TACTICAL ANALYSIS =====
@@ -2043,11 +2055,35 @@ function applyTheme(boardValue, pieceValue) {
         const board = document.querySelector('wc-chess-board');
         return board?.classList.contains('flipped') ? 'b' : 'w';
     }
+    
+    // ===== PARSE FEN TO BOARD ARRAY =====
+    function parseFen(fen) {
+        const piecePart = fen.split(' ')[0];
+        const rows = piecePart.split('/');
+        const board = [];
+        for (const row of rows) {
+            const cells = [];
+            for (const ch of row) {
+                if (isNaN(ch)) { 
+                    cells.push(ch); 
+                } else { 
+                    for (let i = 0; i < parseInt(ch); i++) cells.push(null); 
+                }
+            }
+            board.push(cells);
+        }
+        return board;
+    }
+
 
     // ===== DRAW BOARD ON CANVAS =====
     function drawBoard(canvas, fenRaw) {
+        console.log('[Mirror] drawBoard called, fenRaw:', fenRaw?.substring(0,20));
+
+
         const dpr = window.devicePixelRatio || 1;
         const SIZE = 280;
+        console.log('[Mirror] SIZE:', SIZE);
         canvas.width  = SIZE * dpr;
         canvas.height = SIZE * dpr;
         canvas.style.width  = SIZE + 'px';
@@ -2105,36 +2141,32 @@ function applyTheme(boardValue, pieceValue) {
                 const piece = board[ri][fi];
                 if (!piece) continue;
         
-                const sym = PIECE_UNICODE[piece];
-                if (!sym) continue;
+                const img = PIECE_IMGS[piece];
+                if (!img) continue;
         
-                const isWhite = piece === piece.toUpperCase();
-                const fontSize = Math.round(cellSize * 0.75);
-                ctx.font = `${fontSize}px serif`;
-        
-                // Tọa độ tâm ô trong không gian gốc (trước khi rotate toàn cục)
                 const cx = fi * cellSize + cellSize / 2;
                 const cy = ri * cellSize + cellSize / 2;
+                const pad = cellSize * 0.04;
         
                 ctx.save();
-                // Reset về gốc tọa độ thật, bỏ qua rotate toàn cục
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                
-                // Tọa độ thật sau khi canvas đã flip 180°
+        
                 const realX = SIZE - cx;
                 const realY = SIZE - cy;
         
-                ctx.fillStyle = isWhite ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.6)';
-                ctx.fillText(sym, realX + 1, realY + 1);
+                // Shadow nhẹ cho quân cờ
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 3;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
         
-                ctx.fillStyle = isWhite ? '#f0d9b5' : '#2a2a2a';
-                ctx.fillText(sym, realX, realY);
-        
-                if (isWhite) {
-                    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-                    ctx.lineWidth = 0.5;
-                    ctx.strokeText(sym, realX, realY);
-                }
+                ctx.drawImage(
+                    img,
+                    realX - cellSize / 2 + pad,
+                    realY - cellSize / 2 + pad,
+                    cellSize - pad * 2,
+                    cellSize - pad * 2
+                );
         
                 ctx.restore();
             }
@@ -2259,6 +2291,8 @@ function applyTheme(boardValue, pieceValue) {
 
     // ===== UPDATE =====
     function updateMirrorBoard() {
+        console.log('[Mirror] updateMirrorBoard called, enabled:', enabled, 'mirrorEl:', !!mirrorEl?.isConnected);
+
         if (!enabled || !mirrorEl?.isConnected) return;
 
         const fenRaw = typeof window.martinGetFen === 'function'
@@ -2295,13 +2329,16 @@ function applyTheme(boardValue, pieceValue) {
     let mirrorFenObs = null;
 
     function startFenObserver() {
+        // Chạy song song
+        preloadPieces();
+    
         const board = document.querySelector('wc-chess-board');
         if (!board) { setTimeout(startFenObserver, 600); return; }
-
+    
         mirrorFenObs = new MutationObserver(() => {
             if (enabled) updateMirrorBoard();
         });
-
+    
         mirrorFenObs.observe(board, {
             subtree: true,
             childList: true,
