@@ -2794,7 +2794,6 @@ function applyTheme(boardValue, pieceValue) {
     }
 
     // ===== MOUSE EVENTS =====
-    // ===== MOUSE EVENTS =====
     function initMouseEvents() {
         const boardEl = document.querySelector('wc-chess-board');
         if (!boardEl) { setTimeout(initMouseEvents, 600); return; }
@@ -2838,9 +2837,7 @@ function applyTheme(boardValue, pieceValue) {
                 });
             }
 
-            // 👈 Đánh dấu vừa vẽ xong để contextmenu không xóa ngay
-            window._martinJustDrewArrow = true;
-            setTimeout(() => { window._martinJustDrewArrow = false; }, 300);
+
 
             drawStart = null;
         });
@@ -2849,10 +2846,13 @@ function applyTheme(boardValue, pieceValue) {
         boardEl.addEventListener('contextmenu', (e) => {
             if (arrowStyle === 'default') return;
             e.preventDefault();
-            if (window._martinJustDrewArrow) return; // 👈 bỏ qua
-            if (!isDrawing) arrows = [];
         });
 
+        boardEl.addEventListener('click', (e) => {
+            if (arrowStyle === 'default') return;
+            arrows = [];
+        });
+        
         // Clear arrows on move
         const moveObs = new MutationObserver(() => { arrows = []; });
         moveObs.observe(boardEl, { attributes: true, attributeFilter: ['fen', 'data-fen'] });
